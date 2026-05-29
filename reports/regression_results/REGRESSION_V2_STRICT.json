@@ -1,0 +1,278 @@
+{
+  "per_video": [
+    {
+      "video_id": "synth_00",
+      "duration": 50.95824194223853,
+      "n_oracle_frames": 102,
+      "n_v2_frames": 164,
+      "C1_bit_identity": {
+        "n_common": 68,
+        "n_o": 68,
+        "n_v": 126,
+        "perfect_match": true,
+        "per_model": {
+          "highlight": {
+            "max_abs_diff": 0.0,
+            "n": 68
+          },
+          "face_det": {
+            "binary_agree": 1.0,
+            "max_conf_diff": 0.0,
+            "n": 68
+          },
+          "face_emb": {
+            "n_valid": 0,
+            "note": "no face-bearing frames in common set; skipped"
+          },
+          "scene": {
+            "label_agree": 1.0,
+            "n": 68
+          }
+        }
+      },
+      "C2_task_quality": {
+        "highlight": {
+          "hot_region_coverage": 1.0,
+          "n_oracle_hot_ts": 21,
+          "n_v2_hot_ts": 33,
+          "n_common_frames": 68,
+          "note": "Coverage = fraction of oracle's top-20% saliency timestamps sampled by V2 (\u00b11.0s). Oracle-direct segment IoU is confounded by MomentDETR's sequence-length-dependent positional encoding."
+        },
+        "face_det": {
+          "agreement": 1.0,
+          "pos_recall": 1.0,
+          "n_compared": 102,
+          "n_o_pos": 0,
+          "n_v_pos": 0
+        },
+        "scene": {
+          "tvd": 0.0,
+          "dominant_agree": 1.0,
+          "dominant_o": "other",
+          "dominant_v": "other"
+        }
+      }
+    },
+    {
+      "video_id": "synth_01",
+      "duration": 37.5551375900821,
+      "n_oracle_frames": 75,
+      "n_v2_frames": 120,
+      "C1_bit_identity": {
+        "n_common": 52,
+        "n_o": 52,
+        "n_v": 93,
+        "perfect_match": true,
+        "per_model": {
+          "highlight": {
+            "max_abs_diff": 0.0,
+            "n": 52
+          },
+          "face_det": {
+            "binary_agree": 1.0,
+            "max_conf_diff": 0.0,
+            "n": 52
+          },
+          "face_emb": {
+            "n_valid": 0,
+            "note": "no face-bearing frames in common set; skipped"
+          },
+          "scene": {
+            "label_agree": 1.0,
+            "n": 52
+          }
+        }
+      },
+      "C2_task_quality": {
+        "highlight": {
+          "hot_region_coverage": 1.0,
+          "n_oracle_hot_ts": 15,
+          "n_v2_hot_ts": 24,
+          "n_common_frames": 52,
+          "note": "Coverage = fraction of oracle's top-20% saliency timestamps sampled by V2 (\u00b11.0s). Oracle-direct segment IoU is confounded by MomentDETR's sequence-length-dependent positional encoding."
+        },
+        "face_det": {
+          "agreement": 1.0,
+          "pos_recall": 1.0,
+          "n_compared": 75,
+          "n_o_pos": 0,
+          "n_v_pos": 0
+        },
+        "scene": {
+          "tvd": 0.0,
+          "dominant_agree": 1.0,
+          "dominant_o": "other",
+          "dominant_v": "other"
+        }
+      }
+    },
+    {
+      "video_id": "synth_02",
+      "duration": 54.3439167964553,
+      "n_oracle_frames": 109,
+      "n_v2_frames": 182,
+      "C1_bit_identity": {
+        "n_common": 77,
+        "n_o": 77,
+        "n_v": 147,
+        "perfect_match": true,
+        "per_model": {
+          "highlight": {
+            "max_abs_diff": 0.0,
+            "n": 77
+          },
+          "face_det": {
+            "binary_agree": 1.0,
+            "max_conf_diff": 0.0,
+            "n": 77
+          },
+          "face_emb": {
+            "n_valid": 0,
+            "note": "no face-bearing frames in common set; skipped"
+          },
+          "scene": {
+            "label_agree": 1.0,
+            "n": 77
+          }
+        }
+      },
+      "C2_task_quality": {
+        "highlight": {
+          "hot_region_coverage": 1.0,
+          "n_oracle_hot_ts": 22,
+          "n_v2_hot_ts": 37,
+          "n_common_frames": 77,
+          "note": "Coverage = fraction of oracle's top-20% saliency timestamps sampled by V2 (\u00b11.0s). Oracle-direct segment IoU is confounded by MomentDETR's sequence-length-dependent positional encoding."
+        },
+        "face_det": {
+          "agreement": 1.0,
+          "pos_recall": 1.0,
+          "n_compared": 109,
+          "n_o_pos": 0,
+          "n_v_pos": 0
+        },
+        "scene": {
+          "tvd": 0.0,
+          "dominant_agree": 1.0,
+          "dominant_o": "other",
+          "dominant_v": "other"
+        }
+      }
+    },
+    {
+      "video_id": "synth_03",
+      "duration": 47.89472116237455,
+      "n_oracle_frames": 96,
+      "n_v2_frames": 161,
+      "C1_bit_identity": {
+        "n_common": 67,
+        "n_o": 67,
+        "n_v": 130,
+        "perfect_match": true,
+        "per_model": {
+          "highlight": {
+            "max_abs_diff": 0.0,
+            "n": 67
+          },
+          "face_det": {
+            "binary_agree": 1.0,
+            "max_conf_diff": 0.0,
+            "n": 67
+          },
+          "face_emb": {
+            "n_valid": 0,
+            "note": "no face-bearing frames in common set; skipped"
+          },
+          "scene": {
+            "label_agree": 1.0,
+            "n": 67
+          }
+        }
+      },
+      "C2_task_quality": {
+        "highlight": {
+          "hot_region_coverage": 1.0,
+          "n_oracle_hot_ts": 20,
+          "n_v2_hot_ts": 33,
+          "n_common_frames": 67,
+          "note": "Coverage = fraction of oracle's top-20% saliency timestamps sampled by V2 (\u00b11.0s). Oracle-direct segment IoU is confounded by MomentDETR's sequence-length-dependent positional encoding."
+        },
+        "face_det": {
+          "agreement": 1.0,
+          "pos_recall": 1.0,
+          "n_compared": 96,
+          "n_o_pos": 0,
+          "n_v_pos": 0
+        },
+        "scene": {
+          "tvd": 0.0,
+          "dominant_agree": 1.0,
+          "dominant_o": "other",
+          "dominant_v": "other"
+        }
+      }
+    },
+    {
+      "video_id": "synth_04",
+      "duration": 23.76709391550598,
+      "n_oracle_frames": 48,
+      "n_v2_frames": 82,
+      "C1_bit_identity": {
+        "n_common": 38,
+        "n_o": 38,
+        "n_v": 70,
+        "perfect_match": true,
+        "per_model": {
+          "highlight": {
+            "max_abs_diff": 0.0,
+            "n": 38
+          },
+          "face_det": {
+            "binary_agree": 1.0,
+            "max_conf_diff": 0.0,
+            "n": 38
+          },
+          "face_emb": {
+            "n_valid": 0,
+            "note": "no face-bearing frames in common set; skipped"
+          },
+          "scene": {
+            "label_agree": 1.0,
+            "n": 38
+          }
+        }
+      },
+      "C2_task_quality": {
+        "highlight": {
+          "hot_region_coverage": 1.0,
+          "n_oracle_hot_ts": 10,
+          "n_v2_hot_ts": 17,
+          "n_common_frames": 38,
+          "note": "Coverage = fraction of oracle's top-20% saliency timestamps sampled by V2 (\u00b11.0s). Oracle-direct segment IoU is confounded by MomentDETR's sequence-length-dependent positional encoding."
+        },
+        "face_det": {
+          "agreement": 1.0,
+          "pos_recall": 1.0,
+          "n_compared": 48,
+          "n_o_pos": 0,
+          "n_v_pos": 0
+        },
+        "scene": {
+          "tvd": 0.0,
+          "dominant_agree": 1.0,
+          "dominant_o": "other",
+          "dominant_v": "other"
+        }
+      }
+    }
+  ],
+  "verdict": {
+    "C1_pass": true,
+    "C2_hl_coverage": 1.0,
+    "C2_det_agree": 1.0,
+    "C2_det_recall": 1.0,
+    "C2_scene_agree": 1.0,
+    "C2_scene_tvd": 0.0,
+    "overall_pass": true
+  }
+}

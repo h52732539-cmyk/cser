@@ -1,0 +1,8 @@
+{
+  "input_dim": 531,
+  "num_routes": 30,
+  "param_count": 78562,
+  "epochs_run": 84,
+  "best_val_loss": 2.1550846099853516,
+  "train_seconds": 1.4729744000069331
+}

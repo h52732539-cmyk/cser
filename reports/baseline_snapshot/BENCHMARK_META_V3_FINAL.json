@@ -1,0 +1,22 @@
+{
+  "semantic_only": {
+    "R@1": 0.388,
+    "R@5": 0.61,
+    "R@10": 0.701,
+    "MedR": 3.0,
+    "MeanR": 29.274,
+    "total_ms": 736.8930999655277,
+    "ms_per_query": 0.7368930999655277
+  },
+  "hybrid_meta": {
+    "R@1": 0.695,
+    "R@5": 0.86,
+    "R@10": 0.909,
+    "MedR": 1.0,
+    "MeanR": 8.754999999999999,
+    "total_ms": 2618.1233999086544,
+    "ms_per_query": 2.6181233999086544
+  },
+  "n_queries_with_constraints": 723,
+  "avg_kept_ratio_when_constrained": 0.045622406639004146
+}

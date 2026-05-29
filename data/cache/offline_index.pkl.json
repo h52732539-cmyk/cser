@@ -1,0 +1,32 @@
+[
+  {
+    "video_id": "synth_00",
+    "duration": 50.95824194223853,
+    "n_key": 20,
+    "bytes": 16384
+  },
+  {
+    "video_id": "synth_01",
+    "duration": 37.5551375900821,
+    "n_key": 20,
+    "bytes": 16384
+  },
+  {
+    "video_id": "synth_02",
+    "duration": 54.3439167964553,
+    "n_key": 20,
+    "bytes": 16384
+  },
+  {
+    "video_id": "synth_03",
+    "duration": 47.89472116237455,
+    "n_key": 20,
+    "bytes": 16384
+  },
+  {
+    "video_id": "synth_04",
+    "duration": 23.76709391550598,
+    "n_key": 20,
+    "bytes": 16384
+  }
+]

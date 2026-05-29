@@ -1,0 +1,7 @@
+{
+  "R25_time_soft_top500": 138,
+  "R00_semantic_only_top500": 113,
+  "R29_full_budget_all_soft_dense_refine": 44,
+  "R02_time_hard_top500": 4,
+  "R16_semantic_top1000_nnn_qamp": 1
+}

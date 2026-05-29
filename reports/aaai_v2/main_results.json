@@ -1,0 +1,110 @@
+[
+  {
+    "method": "B0_semantic_only",
+    "R@1": 0.316,
+    "R@5": 0.504,
+    "R@10": 0.644,
+    "MeanR": 36.564,
+    "MedR": 5.0,
+    "MRR": 0.4144469889922814,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.0,
+    "avg_ms_query": 20.42934799194336
+  },
+  {
+    "method": "B1_rule_parser",
+    "R@1": 0.392,
+    "R@5": 0.612,
+    "R@10": 0.696,
+    "MeanR": 14.772093023255813,
+    "MedR": 2.0,
+    "MRR": 0.5790767136090814,
+    "GT_filtered_rate": 0.14,
+    "avg_cost": 1.1239999532699585,
+    "avg_ms_query": 21.01376724243164
+  },
+  {
+    "method": "B2_qpp_only",
+    "R@1": 0.328,
+    "R@5": 0.512,
+    "R@10": 0.66,
+    "MeanR": 34.224,
+    "MedR": 5.0,
+    "MRR": 0.42525893654085395,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.5160000324249268,
+    "avg_ms_query": 20.315725326538086
+  },
+  {
+    "method": "B4_oracle",
+    "R@1": 0.56,
+    "R@5": 0.74,
+    "R@10": 0.808,
+    "MeanR": 14.584,
+    "MedR": 1.0,
+    "MRR": 0.6434927210894679,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.2879999876022339,
+    "avg_ms_query": 22.50901985168457
+  },
+  {
+    "method": "B5_always_hard_all",
+    "R@1": 0.392,
+    "R@5": 0.612,
+    "R@10": 0.696,
+    "MeanR": 14.772093023255813,
+    "MedR": 2.0,
+    "MRR": 0.5790767136090814,
+    "GT_filtered_rate": 0.14,
+    "avg_cost": 1.1239999532699585,
+    "avg_ms_query": 23.59620475769043
+  },
+  {
+    "method": "B7_cqin_calibrated_v1",
+    "R@1": 0.456,
+    "R@5": 0.672,
+    "R@10": 0.764,
+    "MeanR": 24.548,
+    "MedR": 2.0,
+    "MRR": 0.5577159027799282,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.0,
+    "avg_ms_query": 23.79543685913086
+  },
+  {
+    "method": "B8_cascade",
+    "R@1": 0.44,
+    "R@5": 0.684,
+    "R@10": 0.78,
+    "MeanR": 18.556,
+    "MedR": 2.0,
+    "MRR": 0.5579820760880397,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.0520000457763672,
+    "avg_ms_query": 22.936485290527344
+  },
+  {
+    "method": "B9_cqin_soft_fallback",
+    "R@1": 0.456,
+    "R@5": 0.672,
+    "R@10": 0.764,
+    "MeanR": 24.548,
+    "MedR": 2.0,
+    "MRR": 0.5577159027799282,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.0,
+    "avg_ms_query": 23.0041561126709
+  },
+  {
+    "method": "B10_cqin_budgeted_cascade",
+    "R@1": 0.46,
+    "R@5": 0.688,
+    "R@10": 0.796,
+    "MeanR": 18.428,
+    "MedR": 2.0,
+    "MRR": 0.5673452899944748,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.815999984741211,
+    "avg_ms_query": 22.69605827331543
+  }
+]

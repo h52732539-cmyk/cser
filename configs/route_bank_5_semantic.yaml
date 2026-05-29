@@ -1,0 +1,38 @@
+# 5 semantic-only routes (subset of route_bank_30.yaml)
+routes:
+  - route_id: R00_semantic_only_top500
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R01_semantic_only_top300
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 300
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R15_semantic_top100_no_rerank
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 100
+    rerank_mode: none
+    budget_tier: low
+
+  - route_id: R16_semantic_top1000_nnn_qamp
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 1000
+    rerank_mode: nnn_qamp
+    budget_tier: medium
+
+  - route_id: R29_full_budget_all_soft_dense_refine
+    hard_axes: []
+    soft_axes: [time, geo, motion, device]
+    candidate_topm: 1000
+    rerank_mode: nnn_qamp
+    budget_tier: full
+    allow_image_model_calls: true
+    allow_dense_refinement: true

@@ -1,0 +1,58 @@
+[
+  {
+    "method": "semantic_only",
+    "R@1": 1.0,
+    "R@5": 1.0,
+    "R@10": 1.0,
+    "MRR": 1.0,
+    "MeanR": 1.0,
+    "MedR": 1.0,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 1.0
+  },
+  {
+    "method": "all_experts",
+    "R@1": 0.625,
+    "R@5": 0.75,
+    "R@10": 0.75,
+    "MRR": 0.6975,
+    "MeanR": 7.125,
+    "MedR": 1.0,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 5.0
+  },
+  {
+    "method": "fixed_cascade",
+    "R@1": 0.5,
+    "R@5": 0.75,
+    "R@10": 0.75,
+    "MRR": 0.635,
+    "MeanR": 7.25,
+    "MedR": 1.5,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 3.0
+  },
+  {
+    "method": "random_subset",
+    "R@1": 0.625,
+    "R@5": 0.75,
+    "R@10": 0.75,
+    "MRR": 0.6766666666666666,
+    "MeanR": 7.25,
+    "MedR": 1.0,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 3.0
+  },
+  {
+    "method": "CSER_mondrian",
+    "R@1": 1.0,
+    "R@5": 1.0,
+    "R@10": 1.0,
+    "MRR": 1.0,
+    "MeanR": 1.0,
+    "MedR": 1.0,
+    "GT_filtered_rate": 0.0,
+    "avg_cost": 3.0,
+    "avg_conformal_set_size": 1.0
+  }
+]

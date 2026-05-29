@@ -1,0 +1,121 @@
+{
+  "B9_cqin_soft_fallback_vs_B1_rule_parser": {
+    "bootstrap": {
+      "obs_diff_R@1": 0.064,
+      "p_value": 0.0189,
+      "ci_95": [
+        0.01599999999999996,
+        0.11209999999999859
+      ],
+      "significant_005": true
+    },
+    "mcnemar": {
+      "chi2": 5.357142857142857,
+      "p_value": 0.020637558243972176,
+      "a_only": 29,
+      "b_only": 13
+    }
+  },
+  "B9_cqin_soft_fallback_vs_B8_cascade": {
+    "bootstrap": {
+      "obs_diff_R@1": 0.016000000000000014,
+      "p_value": 0.5694,
+      "ci_95": [
+        -0.02400000000000002,
+        0.06
+      ],
+      "significant_005": false
+    },
+    "mcnemar": {
+      "chi2": 0.3,
+      "p_value": 0.583882420770365,
+      "a_only": 17,
+      "b_only": 13
+    }
+  },
+  "B10_cqin_budgeted_cascade_vs_B1_rule_parser": {
+    "bootstrap": {
+      "obs_diff_R@1": 0.068,
+      "p_value": 0.0129,
+      "ci_95": [
+        0.016000000000000014,
+        0.12
+      ],
+      "significant_005": true
+    },
+    "mcnemar": {
+      "chi2": 5.953488372093023,
+      "p_value": 0.014688191945847806,
+      "a_only": 30,
+      "b_only": 13
+    }
+  },
+  "B10_cqin_budgeted_cascade_vs_B8_cascade": {
+    "bootstrap": {
+      "obs_diff_R@1": 0.020000000000000018,
+      "p_value": 0.4663,
+      "ci_95": [
+        -0.023999999999999966,
+        0.064
+      ],
+      "significant_005": false
+    },
+    "mcnemar": {
+      "chi2": 0.5161290322580645,
+      "p_value": 0.47249761400068846,
+      "a_only": 18,
+      "b_only": 13
+    }
+  },
+  "B7_cqin_calibrated_v1_vs_B1_rule_parser": {
+    "bootstrap": {
+      "obs_diff_R@1": 0.064,
+      "p_value": 0.0189,
+      "ci_95": [
+        0.01599999999999996,
+        0.11209999999999859
+      ],
+      "significant_005": true
+    },
+    "mcnemar": {
+      "chi2": 5.357142857142857,
+      "p_value": 0.020637558243972176,
+      "a_only": 29,
+      "b_only": 13
+    }
+  },
+  "B9_cqin_soft_fallback_vs_B4_oracle": {
+    "bootstrap": {
+      "obs_diff_R@1": -0.10400000000000004,
+      "p_value": 0.0,
+      "ci_95": [
+        -0.14399999999999996,
+        -0.068
+      ],
+      "significant_005": true
+    },
+    "mcnemar": {
+      "chi2": 24.03846153846154,
+      "p_value": 9.443043861301348e-07,
+      "a_only": 0,
+      "b_only": 26
+    }
+  },
+  "B10_cqin_budgeted_cascade_vs_B4_oracle": {
+    "bootstrap": {
+      "obs_diff_R@1": -0.10000000000000003,
+      "p_value": 0.0,
+      "ci_95": [
+        -0.13999999999999996,
+        -0.064
+      ],
+      "significant_005": true
+    },
+    "mcnemar": {
+      "chi2": 23.04,
+      "p_value": 1.586656303897982e-06,
+      "a_only": 0,
+      "b_only": 25
+    }
+  }
+}

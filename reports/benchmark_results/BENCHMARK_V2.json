@@ -1,0 +1,124 @@
+{
+  "v1": {
+    "rows": [
+      {
+        "query": "a person walking outdoors",
+        "wall_ms": 178.34339999535587,
+        "n_frames_encoded": 40
+      },
+      {
+        "query": "people talking indoors",
+        "wall_ms": 122.87870000000112,
+        "n_frames_encoded": 40
+      },
+      {
+        "query": "a close-up of a face",
+        "wall_ms": 123.13349999749335,
+        "n_frames_encoded": 40
+      },
+      {
+        "query": "a bright outdoor scene",
+        "wall_ms": 112.47879999427823,
+        "n_frames_encoded": 40
+      },
+      {
+        "query": "a still indoor room",
+        "wall_ms": 106.44800000591204,
+        "n_frames_encoded": 40
+      }
+    ]
+  },
+  "v2": {
+    "rows": [
+      {
+        "query": "a person walking outdoors",
+        "top_k": [
+          "synth_01",
+          "synth_02",
+          "synth_00"
+        ],
+        "margin": 0.010289028286933899,
+        "difficulty": "hard",
+        "wall_ms": 2353.6747000034666,
+        "encode_text_ms": 0.10789999942062423,
+        "index_search_ms": 0.2718999967328273,
+        "stage2_model_ms": 6.498999988252763,
+        "n_frames_decoded": 129
+      },
+      {
+        "query": "people talking indoors",
+        "top_k": [
+          "synth_03",
+          "synth_00",
+          "synth_04"
+        ],
+        "margin": 0.06461504101753235,
+        "difficulty": "easy",
+        "wall_ms": 0.22460000036517158,
+        "encode_text_ms": 0.042800005758181214,
+        "index_search_ms": 0.16670000331941992,
+        "stage2_model_ms": 0.0,
+        "n_frames_decoded": 0
+      },
+      {
+        "query": "a close-up of a face",
+        "top_k": [
+          "synth_04",
+          "synth_00",
+          "synth_01"
+        ],
+        "margin": 0.0016586482524871826,
+        "difficulty": "hard",
+        "wall_ms": 2143.001299999014,
+        "encode_text_ms": 0.03310000465717167,
+        "index_search_ms": 0.14490000467048958,
+        "stage2_model_ms": 3.1706999798188917,
+        "n_frames_decoded": 129
+      },
+      {
+        "query": "a bright outdoor scene",
+        "top_k": [
+          "synth_01",
+          "synth_03",
+          "synth_04"
+        ],
+        "margin": 0.022665783762931824,
+        "difficulty": "medium",
+        "wall_ms": 1356.7040999987512,
+        "encode_text_ms": 0.091200003225822,
+        "index_search_ms": 0.28279999969527125,
+        "stage2_model_ms": 0.8849000005284324,
+        "n_frames_decoded": 79
+      },
+      {
+        "query": "a still indoor room",
+        "top_k": [
+          "synth_02",
+          "synth_03",
+          "synth_04"
+        ],
+        "margin": 0.007007896900177002,
+        "difficulty": "hard",
+        "wall_ms": 2094.9884000001475,
+        "encode_text_ms": 0.09760000102687627,
+        "index_search_ms": 0.17939999816007912,
+        "stage2_model_ms": 1.3666000013472512,
+        "n_frames_decoded": 127
+      }
+    ],
+    "index_build_ms": 1220.1122000042233,
+    "index_summary": {
+      "n_videos": 5,
+      "avg_keyframes": 20.0,
+      "total_bytes": 81920,
+      "K_values": [
+        2,
+        4,
+        6
+      ]
+    }
+  },
+  "speedup": 0.08093034728282913,
+  "v1_avg_ms": 128.65647999860812,
+  "v2_avg_ms": 1589.718620000349
+}

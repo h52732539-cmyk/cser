@@ -1,0 +1,166 @@
+{
+  "summary": {
+    "n_videos_tested": 5,
+    "C1_bit_identity": {
+      "face_det_binary_agree_mean": 1.0,
+      "scene_label_agree_mean": 1.0,
+      "face_emb_mean_cos_mean": 1.0000000198682149,
+      "face_emb_min_cos_overall": 1.0,
+      "n_videos_with_face_embs": 3
+    },
+    "C2_quality": {
+      "highlight_hot_coverage_mean": 1.0,
+      "face_det_pos_recall_mean": 1.0,
+      "scene_dominant_agree_mean": 1.0,
+      "scene_tvd_mean": 0.0447340297107739
+    }
+  },
+  "verdicts": {
+    "C1_face_det": true,
+    "C1_scene": true,
+    "C1_face_emb": true,
+    "C2_highlight": true,
+    "C2_face_det": true,
+    "C2_scene": true,
+    "C2_scene_tvd": true
+  },
+  "overall_pass": true,
+  "per_video": [
+    {
+      "video_id": "video264",
+      "duration": 21.666666666666668,
+      "n_oracle_frames": 43,
+      "n_v2_frames": 63,
+      "C1_bit_identity": {
+        "n_common": 42,
+        "face_det_binary_agree": 1.0,
+        "scene_label_agree": 1.0,
+        "face_emb_min_cos": 1.0,
+        "face_emb_mean_cos": 1.000000035762787,
+        "face_emb_n": 30
+      },
+      "C2_quality": {
+        "highlight_hot_coverage": 1.0,
+        "highlight_n_hot_oracle": 9,
+        "face_det_pos_recall": 1.0,
+        "face_det_n_oracle_pos": 31,
+        "face_det_n_v2_pos": 46,
+        "scene_dominant_o": "sport",
+        "scene_dominant_v": "sport",
+        "scene_dominant_agree": 1.0,
+        "scene_tvd": 0.03580657069029164
+      },
+      "n_face_positive_oracle": 31,
+      "highlight_score_oracle_p50": 0.3743569254875183,
+      "highlight_score_oracle_max": 0.41869407892227173
+    },
+    {
+      "video_id": "video1366",
+      "duration": 11.666666666666666,
+      "n_oracle_frames": 23,
+      "n_v2_frames": 35,
+      "C1_bit_identity": {
+        "n_common": 23,
+        "face_det_binary_agree": 1.0,
+        "scene_label_agree": 1.0,
+        "face_emb_min_cos": 1.0,
+        "face_emb_mean_cos": 1.0,
+        "face_emb_n": 1
+      },
+      "C2_quality": {
+        "highlight_hot_coverage": 1.0,
+        "highlight_n_hot_oracle": 5,
+        "face_det_pos_recall": 1.0,
+        "face_det_n_oracle_pos": 1,
+        "face_det_n_v2_pos": 1,
+        "scene_dominant_o": "other",
+        "scene_dominant_v": "other",
+        "scene_dominant_agree": 1.0,
+        "scene_tvd": 0.02236024844720497
+      },
+      "n_face_positive_oracle": 1,
+      "highlight_score_oracle_p50": 0.4422798156738281,
+      "highlight_score_oracle_max": 0.5462058186531067
+    },
+    {
+      "video_id": "video5053",
+      "duration": 12.666666666666666,
+      "n_oracle_frames": 25,
+      "n_v2_frames": 37,
+      "C1_bit_identity": {
+        "n_common": 25,
+        "face_det_binary_agree": 1.0,
+        "scene_label_agree": 1.0,
+        "face_emb_n": 0
+      },
+      "C2_quality": {
+        "highlight_hot_coverage": 1.0,
+        "highlight_n_hot_oracle": 5,
+        "face_det_pos_recall": 1.0,
+        "face_det_n_oracle_pos": 0,
+        "face_det_n_v2_pos": 0,
+        "scene_dominant_o": "other",
+        "scene_dominant_v": "other",
+        "scene_dominant_agree": 1.0,
+        "scene_tvd": 0.014054054054054039
+      },
+      "n_face_positive_oracle": 0,
+      "highlight_score_oracle_p50": 0.425958514213562,
+      "highlight_score_oracle_max": 0.4878847301006317
+    },
+    {
+      "video_id": "video4609",
+      "duration": 11.666666666666666,
+      "n_oracle_frames": 23,
+      "n_v2_frames": 35,
+      "C1_bit_identity": {
+        "n_common": 23,
+        "face_det_binary_agree": 1.0,
+        "scene_label_agree": 1.0,
+        "face_emb_min_cos": 1.0,
+        "face_emb_mean_cos": 1.0000000238418578,
+        "face_emb_n": 15
+      },
+      "C2_quality": {
+        "highlight_hot_coverage": 1.0,
+        "highlight_n_hot_oracle": 5,
+        "face_det_pos_recall": 1.0,
+        "face_det_n_oracle_pos": 15,
+        "face_det_n_v2_pos": 20,
+        "scene_dominant_o": "other",
+        "scene_dominant_v": "other",
+        "scene_dominant_agree": 1.0,
+        "scene_tvd": 0.09192546583850932
+      },
+      "n_face_positive_oracle": 15,
+      "highlight_score_oracle_p50": 0.6318902969360352,
+      "highlight_score_oracle_max": 0.662619411945343
+    },
+    {
+      "video_id": "video429",
+      "duration": 10.666666666666666,
+      "n_oracle_frames": 21,
+      "n_v2_frames": 28,
+      "C1_bit_identity": {
+        "n_common": 21,
+        "face_det_binary_agree": 1.0,
+        "scene_label_agree": 1.0,
+        "face_emb_n": 0
+      },
+      "C2_quality": {
+        "highlight_hot_coverage": 1.0,
+        "highlight_n_hot_oracle": 5,
+        "face_det_pos_recall": 1.0,
+        "face_det_n_oracle_pos": 0,
+        "face_det_n_v2_pos": 0,
+        "scene_dominant_o": "other",
+        "scene_dominant_v": "other",
+        "scene_dominant_agree": 1.0,
+        "scene_tvd": 0.059523809523809534
+      },
+      "n_face_positive_oracle": 0,
+      "highlight_score_oracle_p50": 0.4961071312427521,
+      "highlight_score_oracle_max": 0.5661588907241821
+    }
+  ]
+}

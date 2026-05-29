@@ -1,0 +1,71 @@
+# 10 soft-rerank-only routes (no hard filter)
+routes:
+  - route_id: R00_semantic_only_top500
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R14_soft_time_geo_motion_top500
+    hard_axes: []
+    soft_axes: [time, geo, motion]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: medium
+
+  - route_id: R23_motion_soft_top500
+    hard_axes: []
+    soft_axes: [motion]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R24_device_soft_top500
+    hard_axes: []
+    soft_axes: [device]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R25_time_soft_top500
+    hard_axes: []
+    soft_axes: [time]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R26_geo_soft_top500
+    hard_axes: []
+    soft_axes: [geo]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R27_time_geo_soft_top500
+    hard_axes: []
+    soft_axes: [time, geo]
+    candidate_topm: 500
+    rerank_mode: nnn_qamp
+    budget_tier: medium
+
+  - route_id: R16_semantic_top1000_nnn_qamp
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 1000
+    rerank_mode: nnn_qamp
+    budget_tier: medium
+
+  - route_id: R01_semantic_only_top300
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 300
+    rerank_mode: nnn_qamp
+    budget_tier: low
+
+  - route_id: R15_semantic_top100_no_rerank
+    hard_axes: []
+    soft_axes: []
+    candidate_topm: 100
+    rerank_mode: none
+    budget_tier: low

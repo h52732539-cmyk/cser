@@ -1,0 +1,203 @@
+{
+  "per_video": [
+    {
+      "video_id": "synth_00",
+      "duration": 50.95824194223853,
+      "highlight": {
+        "seg_iou": 0.18176282019885676,
+        "bnd_mae": 14.50754580717211,
+        "n_oracle_seg": 5,
+        "n_v2_seg": 1
+      },
+      "face_det": {
+        "agreement": 1.0,
+        "recall": 0.0,
+        "n_oracle_pos": 0,
+        "n_v2_pos": 0,
+        "n_compared": 18
+      },
+      "face_emb": {
+        "avg_cos": 1.0,
+        "n_common": 0,
+        "n_oracle": 0,
+        "n_v2": 0
+      },
+      "scene": {
+        "dominant_agree": 1.0,
+        "tvd": 0.0,
+        "oracle_dominant": "other",
+        "v2_dominant": "other"
+      },
+      "cache_stats": {
+        "hits_total": 0,
+        "misses": 120,
+        "hit_rate_pct": 0,
+        "calls_saved": 0
+      }
+    },
+    {
+      "video_id": "synth_01",
+      "duration": 37.5551375900821,
+      "highlight": {
+        "seg_iou": 0.5184135741263183,
+        "bnd_mae": 12.2493873601102,
+        "n_oracle_seg": 3,
+        "n_v2_seg": 2
+      },
+      "face_det": {
+        "agreement": 1.0,
+        "recall": 0.0,
+        "n_oracle_pos": 0,
+        "n_v2_pos": 0,
+        "n_compared": 20
+      },
+      "face_emb": {
+        "avg_cos": 1.0,
+        "n_common": 0,
+        "n_oracle": 0,
+        "n_v2": 0
+      },
+      "scene": {
+        "dominant_agree": 1.0,
+        "tvd": 0.0,
+        "oracle_dominant": "other",
+        "v2_dominant": "other"
+      },
+      "cache_stats": {
+        "hits_total": 0,
+        "misses": 120,
+        "hit_rate_pct": 0,
+        "calls_saved": 0
+      }
+    },
+    {
+      "video_id": "synth_02",
+      "duration": 54.3439167964553,
+      "highlight": {
+        "seg_iou": 0.19523346725845148,
+        "bnd_mae": 27.75,
+        "n_oracle_seg": 4,
+        "n_v2_seg": 2
+      },
+      "face_det": {
+        "agreement": 1.0,
+        "recall": 0.0,
+        "n_oracle_pos": 0,
+        "n_v2_pos": 0,
+        "n_compared": 19
+      },
+      "face_emb": {
+        "avg_cos": 1.0,
+        "n_common": 0,
+        "n_oracle": 0,
+        "n_v2": 0
+      },
+      "scene": {
+        "dominant_agree": 1.0,
+        "tvd": 0.0,
+        "oracle_dominant": "other",
+        "v2_dominant": "other"
+      },
+      "cache_stats": {
+        "hits_total": 0,
+        "misses": 120,
+        "hit_rate_pct": 0,
+        "calls_saved": 0
+      }
+    },
+    {
+      "video_id": "synth_03",
+      "duration": 47.89472116237455,
+      "highlight": {
+        "seg_iou": 0.2822608937914098,
+        "bnd_mae": 9.003571258504282,
+        "n_oracle_seg": 6,
+        "n_v2_seg": 4
+      },
+      "face_det": {
+        "agreement": 1.0,
+        "recall": 0.0,
+        "n_oracle_pos": 0,
+        "n_v2_pos": 0,
+        "n_compared": 22
+      },
+      "face_emb": {
+        "avg_cos": 1.0,
+        "n_common": 0,
+        "n_oracle": 0,
+        "n_v2": 0
+      },
+      "scene": {
+        "dominant_agree": 1.0,
+        "tvd": 0.0,
+        "oracle_dominant": "other",
+        "v2_dominant": "other"
+      },
+      "cache_stats": {
+        "hits_total": 0,
+        "misses": 120,
+        "hit_rate_pct": 0,
+        "calls_saved": 0
+      }
+    },
+    {
+      "video_id": "synth_04",
+      "duration": 23.76709391550598,
+      "highlight": {
+        "seg_iou": 0.7812499999999999,
+        "bnd_mae": 1.120000000000001,
+        "n_oracle_seg": 1,
+        "n_v2_seg": 1
+      },
+      "face_det": {
+        "agreement": 1.0,
+        "recall": 0.0,
+        "n_oracle_pos": 0,
+        "n_v2_pos": 0,
+        "n_compared": 24
+      },
+      "face_emb": {
+        "avg_cos": 1.0,
+        "n_common": 0,
+        "n_oracle": 0,
+        "n_v2": 0
+      },
+      "scene": {
+        "dominant_agree": 1.0,
+        "tvd": 0.0,
+        "oracle_dominant": "other",
+        "v2_dominant": "other"
+      },
+      "cache_stats": {
+        "hits_total": 0,
+        "misses": 99,
+        "hit_rate_pct": 0,
+        "calls_saved": 0
+      }
+    }
+  ],
+  "aggregate": {
+    "highlight": {
+      "seg_iou_mean": 0.39178415107500725,
+      "bnd_mae_mean": 12.92610088515732
+    },
+    "face_det": {
+      "agreement_mean": 1.0,
+      "recall_mean": 0.0
+    },
+    "face_emb": {
+      "avg_cos_mean": 1.0,
+      "min_cos_overall": 1.0
+    },
+    "scene": {
+      "dominant_agree_mean": 1.0,
+      "tvd_mean": 0.0
+    }
+  },
+  "verdict": {
+    "highlight": false,
+    "face_det": false,
+    "face_emb": true,
+    "scene": true
+  }
+}

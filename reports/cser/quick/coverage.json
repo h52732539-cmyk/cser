@@ -1,0 +1,16 @@
+{
+  "alpha": 0.05,
+  "global_threshold": 0.0,
+  "thresholds": {
+    "0": 0.0,
+    "1": 0.0,
+    "2": 0.0
+  },
+  "bin_counts": {
+    "0": 2,
+    "1": 1,
+    "2": 1
+  },
+  "coverage": 1.0,
+  "avg_set_size": 1.0
+}

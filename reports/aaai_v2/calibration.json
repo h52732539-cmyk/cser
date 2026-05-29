@@ -1,0 +1,34 @@
+{
+  "time": {
+    "tau": 0.9067564606666565,
+    "enabled": true,
+    "n_accepted": 150,
+    "n_total": 150,
+    "empirical_failure_rate": 0.02,
+    "ucb_failure_rate": 0.050877067978523885
+  },
+  "geo": {
+    "tau": 0.9054273962974548,
+    "enabled": true,
+    "n_accepted": 109,
+    "n_total": 150,
+    "empirical_failure_rate": 0.045871559633027525,
+    "ucb_failure_rate": 0.09402694403881356
+  },
+  "motion": {
+    "tau": 0.8378589153289795,
+    "enabled": true,
+    "n_accepted": 135,
+    "n_total": 150,
+    "empirical_failure_rate": 0.05185185185185185,
+    "ucb_failure_rate": 0.095183420660454
+  },
+  "device": {
+    "tau": 0.985518217086792,
+    "enabled": true,
+    "n_accepted": 150,
+    "n_total": 150,
+    "empirical_failure_rate": 0.0,
+    "ucb_failure_rate": 0.01977343816450844
+  }
+}

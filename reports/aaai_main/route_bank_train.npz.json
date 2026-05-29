@@ -1,0 +1,7 @@
+{
+  "n_queries": 700,
+  "n_routes": 30,
+  "oracle_mean_utility": 0.9392728209495544,
+  "oracle_R@1": 0.55,
+  "gt_filtered_rate_mean": 0.04842857142857143
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "synth_00",
+    "path": "demo\\sample_videos\\synth_00.mp4",
+    "meta": "demo\\sample_videos\\synth_00.meta.json",
+    "duration": 50.95824194223853
+  },
+  {
+    "id": "synth_01",
+    "path": "demo\\sample_videos\\synth_01.mp4",
+    "meta": "demo\\sample_videos\\synth_01.meta.json",
+    "duration": 37.5551375900821
+  },
+  {
+    "id": "synth_02",
+    "path": "demo\\sample_videos\\synth_02.mp4",
+    "meta": "demo\\sample_videos\\synth_02.meta.json",
+    "duration": 54.3439167964553
+  },
+  {
+    "id": "synth_03",
+    "path": "demo\\sample_videos\\synth_03.mp4",
+    "meta": "demo\\sample_videos\\synth_03.meta.json",
+    "duration": 47.89472116237455
+  },
+  {
+    "id": "synth_04",
+    "path": "demo\\sample_videos\\synth_04.mp4",
+    "meta": "demo\\sample_videos\\synth_04.meta.json",
+    "duration": 23.76709391550598
+  }
+]

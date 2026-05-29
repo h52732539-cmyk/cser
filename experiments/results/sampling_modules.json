@@ -1,0 +1,242 @@
+[
+  {
+    "name": "S0_full",
+    "med_wall_ms": 297.32384998351336,
+    "avg_n_frames_decoded": 47.3,
+    "sum_calls": {
+      "highlight": 343,
+      "face_det": 343,
+      "face_emb": 158,
+      "scene": 343
+    },
+    "sum_hits": {
+      "highlight": 130,
+      "face_det": 130,
+      "face_emb": 0,
+      "scene": 130
+    },
+    "total_calls": 1187,
+    "total_hits": 390,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S0_full",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S1_no_prefilter",
+    "med_wall_ms": 269.3694500485435,
+    "avg_n_frames_decoded": 53.4,
+    "sum_calls": {
+      "highlight": 392,
+      "face_det": 392,
+      "face_emb": 188,
+      "scene": 392
+    },
+    "sum_hits": {
+      "highlight": 142,
+      "face_det": 142,
+      "face_emb": 0,
+      "scene": 142
+    },
+    "total_calls": 1364,
+    "total_hits": 426,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S1_no_prefilter",
+      "enable_prefilter": false,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S2_no_two_stage",
+    "med_wall_ms": 216.28320001764223,
+    "avg_n_frames_decoded": 34.4,
+    "sum_calls": {
+      "highlight": 344,
+      "face_det": 344,
+      "face_emb": 158,
+      "scene": 344
+    },
+    "sum_hits": {
+      "highlight": 0,
+      "face_det": 0,
+      "face_emb": 0,
+      "scene": 0
+    },
+    "total_calls": 1190,
+    "total_hits": 0,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S2_no_two_stage",
+      "enable_prefilter": true,
+      "enable_two_stage": false,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S3_no_unified_scheduler",
+    "med_wall_ms": 815.9786000032909,
+    "avg_n_frames_decoded": 189.2,
+    "sum_calls": {
+      "highlight": 343,
+      "face_det": 343,
+      "face_emb": 158,
+      "scene": 343
+    },
+    "sum_hits": {
+      "highlight": 130,
+      "face_det": 130,
+      "face_emb": 0,
+      "scene": 130
+    },
+    "total_calls": 1187,
+    "total_hits": 390,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S3_no_unified_scheduler",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": false,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S4_no_seg_aggregator",
+    "med_wall_ms": 284.671800036449,
+    "avg_n_frames_decoded": 47.3,
+    "sum_calls": {
+      "highlight": 343,
+      "face_det": 343,
+      "face_emb": 158,
+      "scene": 343
+    },
+    "sum_hits": {
+      "highlight": 130,
+      "face_det": 130,
+      "face_emb": 0,
+      "scene": 130
+    },
+    "total_calls": 1187,
+    "total_hits": 390,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S4_no_seg_aggregator",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": false,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S5_no_adaptive_sampler",
+    "med_wall_ms": 231.50365002220497,
+    "avg_n_frames_decoded": 37.0,
+    "sum_calls": {
+      "highlight": 241,
+      "face_det": 241,
+      "face_emb": 113,
+      "scene": 241
+    },
+    "sum_hits": {
+      "highlight": 129,
+      "face_det": 129,
+      "face_emb": 0,
+      "scene": 129
+    },
+    "total_calls": 836,
+    "total_hits": 387,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S5_no_adaptive_sampler",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": false,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S6_no_cross_cache",
+    "med_wall_ms": 273.4252500231378,
+    "avg_n_frames_decoded": 47.3,
+    "sum_calls": {
+      "highlight": 473,
+      "face_det": 473,
+      "face_emb": 158,
+      "scene": 473
+    },
+    "sum_hits": {
+      "highlight": 0,
+      "face_det": 0,
+      "face_emb": 0,
+      "scene": 0
+    },
+    "total_calls": 1577,
+    "total_hits": 0,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S6_no_cross_cache",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": false,
+      "enable_qpp_routing": true
+    }
+  },
+  {
+    "name": "S7_no_qpp",
+    "med_wall_ms": 290.5492000281811,
+    "avg_n_frames_decoded": 47.3,
+    "sum_calls": {
+      "highlight": 343,
+      "face_det": 343,
+      "face_emb": 158,
+      "scene": 343
+    },
+    "sum_hits": {
+      "highlight": 130,
+      "face_det": 130,
+      "face_emb": 0,
+      "scene": 130
+    },
+    "total_calls": 1187,
+    "total_hits": 390,
+    "n_videos_ok": 10,
+    "config": {
+      "name": "S7_no_qpp",
+      "enable_prefilter": true,
+      "enable_two_stage": true,
+      "enable_unified_scheduler": true,
+      "enable_segment_aggregator": true,
+      "enable_adaptive_sampler": true,
+      "enable_cross_cache": true,
+      "enable_qpp_routing": false
+    }
+  }
+]

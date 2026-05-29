@@ -1,0 +1,134 @@
+{
+  "delta=0.00": {
+    "time": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "geo": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "motion": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "device": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    }
+  },
+  "delta=0.01": {
+    "time": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "geo": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "motion": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "device": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    }
+  },
+  "delta=0.03": {
+    "time": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "geo": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "motion": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "device": {
+      "tau": 0.985518217086792,
+      "enabled": true,
+      "ucb": 0.01977343816450844
+    }
+  },
+  "delta=0.05": {
+    "time": {
+      "tau": 0.970183253288269,
+      "enabled": true,
+      "ucb": 0.04566359632764001
+    },
+    "geo": {
+      "tau": 0.9399389028549194,
+      "enabled": true,
+      "ucb": 0.04437517261818429
+    },
+    "motion": {
+      "tau": 1.0,
+      "enabled": false,
+      "ucb": 1.0
+    },
+    "device": {
+      "tau": 0.985518217086792,
+      "enabled": true,
+      "ucb": 0.01977343816450844
+    }
+  },
+  "delta=0.10": {
+    "time": {
+      "tau": 0.9067564606666565,
+      "enabled": true,
+      "ucb": 0.050877067978523885
+    },
+    "geo": {
+      "tau": 0.9054273962974548,
+      "enabled": true,
+      "ucb": 0.09402694403881356
+    },
+    "motion": {
+      "tau": 0.8378589153289795,
+      "enabled": true,
+      "ucb": 0.095183420660454
+    },
+    "device": {
+      "tau": 0.985518217086792,
+      "enabled": true,
+      "ucb": 0.01977343816450844
+    }
+  },
+  "delta=0.15": {
+    "time": {
+      "tau": 0.9067564606666565,
+      "enabled": true,
+      "ucb": 0.050877067978523885
+    },
+    "geo": {
+      "tau": 0.833267092704773,
+      "enabled": true,
+      "ucb": 0.13425700799112406
+    },
+    "motion": {
+      "tau": 0.7583419680595398,
+      "enabled": true,
+      "ucb": 0.11045753184423883
+    },
+    "device": {
+      "tau": 0.985518217086792,
+      "enabled": true,
+      "ucb": 0.01977343816450844
+    }
+  }
+}
