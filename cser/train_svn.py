@@ -1,225 +1,221 @@
-"""Training loop for the CSER Submodular Value Network."""
+"""SVN training loop (plan §4.2: MSE on marginal values + submodularity reg).
+
+Training example layout
+-----------------------
+Each query contributes one row per *subset* S (16 rows). For row (q, S):
+
+  * input  : query_feat[q] (527-D) + selected_mask(S) (K0-D)
+  * target : marginal[q, S, :] (K0-D), with NaN for experts already in S
+
+The MSE loss is masked so experts already in S do not contribute. The
+submodularity regulariser penalises predicted marginals that *increase* when
+the conditioning set grows (a diminishing-returns violation):
+
+    L_sub = mean_{S ⊂ S', e∉S'} max(0, v̂(e|S') - v̂(e|S))
+
+evaluated on the immediate-superset pairs (S, S∪{e'}) that the lattice provides.
+"""
 from __future__ import annotations
 
 import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from .labels import CSEROracleLabels
-from .svn_model import (
-    SubmodularValueNetwork,
-    masked_mse,
-    non_negative_penalty,
-    submodularity_penalty,
-)
+from .experts import N_OPTIONAL, all_optional_masks
+from .svn import SubmodularValueNetwork
+from .value_oracle import OracleLabels
 
 
 @dataclass
 class SVNTrainConfig:
     lr: float = 1e-3
-    epochs: int = 100
-    batch_size: int = 128
+    epochs: int = 300
+    batch_size: int = 256
+    weight_decay: float = 1e-5
+    lambda_sub: float = 0.5         # submodularity regulariser weight
+    patience: int = 30
     val_fraction: float = 0.15
-    lambda_submod: float = 0.1
-    lambda_nonneg: float = 0.01
-    patience: int = 15
+    d_model: int = 128
+    variant: str = "full"
     seed: int = 42
     device: str = "cpu"
-    hidden: int = 128
-    d_expert: int = 64
-    dropout: float = 0.1
+
+    @classmethod
+    def from_dict(cls, d: Dict) -> "SVNTrainConfig":
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
-def make_training_arrays(
-    query_features: np.ndarray,
-    labels: CSEROracleLabels,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    x_rows = []
-    mask_rows = []
-    target_rows = []
-    for qi in range(labels.n_queries):
-        for si in range(labels.n_subsets):
-            target = labels.marginal_values[qi, si]
-            if not np.isfinite(target).any():
-                continue
-            x_rows.append(query_features[qi])
-            mask_rows.append(labels.subset_masks[si].astype(np.float32))
-            target_rows.append(target.astype(np.float32))
-    if not x_rows:
-        raise ValueError("No finite marginal-value labels available for SVN training")
-    return (
-        np.stack(x_rows).astype(np.float32),
-        np.stack(mask_rows).astype(np.float32),
-        np.stack(target_rows).astype(np.float32),
-    )
+# ----------------------------------------------------------------------
+#  Build the (query × subset) training tensors
+# ----------------------------------------------------------------------
+
+def _build_examples(labels: OracleLabels
+                    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Expand oracle labels into per-(query, subset) rows.
+
+    Returns (X_feat, X_mask, Y_marg, Y_valid):
+      X_feat (M, Dq)   query feature, repeated per subset
+      X_mask (M, K0)   selected-set mask
+      Y_marg (M, K0)   target marginals (0 where invalid)
+      Y_valid (M, K0)  1.0 where the target is a real marginal (e ∉ S)
+    """
+    masks = all_optional_masks().astype(np.float32)     # (2**K0, K0)
+    Nq = labels.n_queries
+    n_subsets = labels.n_subsets
+
+    X_feat = np.repeat(labels.query_feats, n_subsets, axis=0)
+    X_mask = np.tile(masks, (Nq, 1))
+    Y = labels.marginal.reshape(Nq * n_subsets, N_OPTIONAL)
+    Y_valid = (~np.isnan(Y)).astype(np.float32)
+    Y_marg = np.nan_to_num(Y, nan=0.0).astype(np.float32)
+    return X_feat.astype(np.float32), X_mask, Y_marg, Y_valid
 
 
-def _make_loaders(
-    features: np.ndarray,
-    masks: np.ndarray,
-    targets: np.ndarray,
-    config: SVNTrainConfig,
-) -> Tuple[DataLoader, DataLoader]:
-    rng = np.random.default_rng(config.seed)
-    n = features.shape[0]
-    perm = rng.permutation(n)
-    n_val = max(1, int(n * config.val_fraction))
-    val_idx = perm[:n_val]
-    train_idx = perm[n_val:]
-    if train_idx.size == 0:
-        train_idx = val_idx
+def _submodularity_penalty(model: SubmodularValueNetwork,
+                           X_feat: torch.Tensor) -> torch.Tensor:
+    """Diminishing-returns penalty over immediate-superset pairs.
 
-    def build(idx: np.ndarray, shuffle: bool) -> DataLoader:
-        ds = TensorDataset(
-            torch.from_numpy(features[idx]).float(),
-            torch.from_numpy(masks[idx]).float(),
-            torch.from_numpy(targets[idx]).float(),
-        )
-        return DataLoader(ds, batch_size=config.batch_size, shuffle=shuffle)
+    For a batch of queries, compare predicted marginals at the empty set vs.
+    each singleton set. v̂(e | {e'}) must not exceed v̂(e | ∅) for e ≠ e'.
+    Cheap O(K0) probe that captures the core submodular constraint.
+    """
+    B = X_feat.shape[0]
+    K0 = model.n_experts
+    empty = torch.zeros(B, K0, device=X_feat.device)
+    base = model(X_feat, empty)                          # v̂(e | ∅)  (B, K0)
 
-    return build(train_idx, True), build(val_idx, False)
-
-
-def _submod_batch_loss(
-    model: SubmodularValueNetwork,
-    x: torch.Tensor,
-    masks: torch.Tensor,
-) -> torch.Tensor:
-    selected_optional = masks.clone()
-    selected_optional[:, 0] = 0.0
-    has_selected = selected_optional.sum(dim=1) > 0
-    if not bool(has_selected.any()):
-        return x.sum() * 0.0
-
-    larger = masks[has_selected]
-    smaller = larger.clone()
-    for row in range(smaller.shape[0]):
-        selected = torch.nonzero(smaller[row] > 0.5, as_tuple=False).flatten()
-        selected = selected[selected != 0]
-        if selected.numel() > 0:
-            smaller[row, int(selected[0].item())] = 0.0
-
-    x_sub = x[has_selected]
-    pred_small = model(x_sub, smaller)
-    pred_large = model(x_sub, larger)
-    candidate_mask = larger < 0.5
-    return submodularity_penalty(pred_small, pred_large, candidate_mask)
+    penalties = []
+    for ep in range(K0):                                 # add singleton {ep}
+        m = torch.zeros(B, K0, device=X_feat.device)
+        m[:, ep] = 1.0
+        v = model(X_feat, m)                             # v̂(e | {ep})
+        diff = v - base                                  # want ≤ 0 for e ≠ ep
+        diff = diff.clone()
+        diff[:, ep] = 0.0                                # ignore the added expert
+        penalties.append(torch.clamp(diff, min=0.0))
+    return torch.stack(penalties, dim=0).mean()
 
 
-def train_svn(
-    query_features: np.ndarray,
-    labels: CSEROracleLabels,
-    config: Optional[SVNTrainConfig] = None,
-    save_dir: Optional[str | Path] = None,
-    verbose: bool = True,
-) -> Tuple[SubmodularValueNetwork, Dict[str, object]]:
+# ----------------------------------------------------------------------
+#  Train
+# ----------------------------------------------------------------------
+
+def train_svn(labels: OracleLabels,
+              config: Optional[SVNTrainConfig] = None,
+              save_dir: Optional[str] = None,
+              verbose: bool = True) -> Tuple[SubmodularValueNetwork, Dict]:
     config = config or SVNTrainConfig()
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
-
-    x_arr, mask_arr, y_arr = make_training_arrays(query_features, labels)
-    train_loader, val_loader = _make_loaders(x_arr, mask_arr, y_arr, config)
-
     device = torch.device(config.device)
-    model = SubmodularValueNetwork(
-        query_dim=query_features.shape[1],
-        n_experts=labels.n_experts,
-        d_expert=config.d_expert,
-        hidden=config.hidden,
-        dropout=config.dropout,
-    ).to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=config.lr)
 
-    best_state = None
+    X_feat, X_mask, Y_marg, Y_valid = _build_examples(labels)
+    M = X_feat.shape[0]
+
+    rng = np.random.default_rng(config.seed)
+    perm = rng.permutation(M)
+    n_val = max(1, int(M * config.val_fraction))
+    val_idx, tr_idx = perm[:n_val], perm[n_val:]
+
+    def _loader(idx, shuffle):
+        ds = TensorDataset(
+            torch.from_numpy(X_feat[idx]), torch.from_numpy(X_mask[idx]),
+            torch.from_numpy(Y_marg[idx]), torch.from_numpy(Y_valid[idx]),
+        )
+        return DataLoader(ds, batch_size=config.batch_size, shuffle=shuffle)
+
+    train_loader = _loader(tr_idx, True)
+    val_loader = _loader(val_idx, False)
+
+    model = SubmodularValueNetwork(
+        d_query=X_feat.shape[1], d_model=config.d_model,
+        n_experts=N_OPTIONAL, variant=config.variant,
+    ).to(device)
+    if verbose:
+        print(f"[svn] variant={config.variant} params={model.param_count():,}")
+
+    opt = torch.optim.AdamW(model.parameters(), lr=config.lr,
+                            weight_decay=config.weight_decay)
+
+    def _masked_mse(pred, target, valid):
+        se = (pred - target) ** 2 * valid
+        return se.sum() / valid.sum().clamp(min=1.0)
+
     best_val = float("inf")
+    best_state = None
     patience = 0
-    history: Dict[str, object] = {
-        "train_loss": [],
-        "val_loss": [],
-        "n_examples": int(x_arr.shape[0]),
-        "param_count": int(model.param_count()),
-    }
+    history = {"train_loss": [], "val_mse": []}
 
     t0 = time.perf_counter()
     for epoch in range(config.epochs):
         model.train()
-        train_losses = []
-        for x, masks, targets in train_loader:
-            x = x.to(device)
-            masks = masks.to(device)
-            targets = targets.to(device)
-            pred = model(x, masks)
-            finite_mask = torch.isfinite(targets) & (masks < 0.5)
-            loss_main = masked_mse(pred, targets)
-            loss_sub = _submod_batch_loss(model, x, masks)
-            loss_nonneg = non_negative_penalty(pred, finite_mask)
-            loss = (
-                loss_main
-                + config.lambda_submod * loss_sub
-                + config.lambda_nonneg * loss_nonneg
-            )
+        tl = []
+        for Xf, Xm, Ym, Yv in train_loader:
+            Xf, Xm, Ym, Yv = Xf.to(device), Xm.to(device), Ym.to(device), Yv.to(device)
+            pred = model(Xf, Xm)
+            loss = _masked_mse(pred, Ym, Yv)
+            if config.lambda_sub > 0:
+                loss = loss + config.lambda_sub * _submodularity_penalty(model, Xf)
             opt.zero_grad()
             loss.backward()
             opt.step()
-            train_losses.append(float(loss.item()))
+            tl.append(loss.item())
 
         model.eval()
-        val_losses = []
+        vl = []
         with torch.no_grad():
-            for x, masks, targets in val_loader:
-                x = x.to(device)
-                masks = masks.to(device)
-                targets = targets.to(device)
-                pred = model(x, masks)
-                loss = masked_mse(pred, targets)
-                val_losses.append(float(loss.item()))
+            for Xf, Xm, Ym, Yv in val_loader:
+                Xf, Xm, Ym, Yv = Xf.to(device), Xm.to(device), Ym.to(device), Yv.to(device)
+                vl.append(_masked_mse(model(Xf, Xm), Ym, Yv).item())
 
-        train_loss = float(np.mean(train_losses)) if train_losses else 0.0
-        val_loss = float(np.mean(val_losses)) if val_losses else train_loss
-        history["train_loss"].append(train_loss)  # type: ignore[index]
-        history["val_loss"].append(val_loss)  # type: ignore[index]
+        tr_avg, val_avg = float(np.mean(tl)), float(np.mean(vl))
+        history["train_loss"].append(tr_avg)
+        history["val_mse"].append(val_avg)
 
-        if val_loss < best_val:
-            best_val = val_loss
-            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        if val_avg < best_val:
+            best_val = val_avg
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
             patience = 0
         else:
             patience += 1
-        if verbose and (epoch + 1) % 20 == 0:
-            print(f"[svn] epoch={epoch+1} train={train_loss:.4f} val={val_loss:.4f}")
+
+        if verbose and (epoch + 1) % 25 == 0:
+            print(f"  epoch {epoch+1:3d} train={tr_avg:.5f} "
+                  f"val_mse={val_avg:.5f} best={best_val:.5f}")
         if patience >= config.patience:
+            if verbose:
+                print(f"  early stop @ epoch {epoch+1}")
             break
 
     if best_state is not None:
         model.load_state_dict(best_state)
     model.eval()
+    elapsed = time.perf_counter() - t0
+    if verbose:
+        print(f"[svn] done in {elapsed:.1f}s best_val_mse={best_val:.5f}")
 
-    history["best_val_loss"] = float(best_val)
-    history["train_seconds"] = float(time.perf_counter() - t0)
-    history["epochs_run"] = len(history["train_loss"])  # type: ignore[arg-type]
-
-    if save_dir is not None:
+    if save_dir:
         p = Path(save_dir)
         p.mkdir(parents=True, exist_ok=True)
-        torch.save(model.state_dict(), p / "best.pt")
-        (p / "config.json").write_text(
-            json.dumps(
-                {
-                    "query_dim": int(query_features.shape[1]),
-                    "n_experts": int(labels.n_experts),
-                    "expert_ids": list(labels.expert_ids),
-                    "param_count": int(model.param_count()),
-                    "history": history,
-                },
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
+        torch.save(model.state_dict(), p / "svn.pt")
+        (p / "svn_config.json").write_text(json.dumps({
+            "variant": config.variant,
+            "d_query": int(X_feat.shape[1]),
+            "d_model": config.d_model,
+            "param_count": model.param_count(),
+            "best_val_mse": best_val,
+            "epochs_run": len(history["train_loss"]),
+            "train_seconds": elapsed,
+            "lambda_sub": config.lambda_sub,
+        }, indent=2), encoding="utf-8")
+        if verbose:
+            print(f"[save] {p / 'svn.pt'}")
 
     return model, history

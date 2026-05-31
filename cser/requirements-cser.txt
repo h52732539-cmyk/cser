@@ -1,0 +1,15 @@
+# Runtime dependencies for the CSER package (cser/).
+#
+# Core (synthetic + mock-expert path — runs with NO external files):
+numpy>=1.21
+torch>=1.12
+#
+# Only needed for the REAL-model path (--real-models / --videos):
+#   opencv-python  : decode frames from real videos (cser/data.py::_decode_frames)
+#   open_clip_torch: MobileCLIP backbone (tasks/real_models.py)
+#   insightface    : SCRFD + ArcFace
+#   torchvision    : MobileNetV3 scene classifier
+#   pillow         : image conversion for some backbones
+# Install these yourself when running real models; the synthetic/mock path
+# (default, used by the test suite and smoke runs) needs only numpy + torch.
+
