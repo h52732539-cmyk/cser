@@ -1,0 +1,21 @@
+{
+  "base_sha": "e3c9244a1775fcf8a9e0fa35d805ce9b884fa539",
+  "cuda_visible_devices": null,
+  "freeze_date": "2026-06-13",
+  "frozen_code_sha": "75bbc6aee9408522435296fbe8d87d1052875879",
+  "hostname": "mgmt-3",
+  "onnxruntime_file": "/hpc2hdd/home/yyan047/miniconda3/envs/cser/lib/python3.11/site-packages/onnxruntime/__init__.py",
+  "onnxruntime_providers": [
+    "AzureExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "onnxruntime_version": "1.26.0",
+  "platform": "Linux-5.4.0-153-generic-x86_64-with-glibc2.31",
+  "purpose": "pre-selector-repair baseline",
+  "python": "3.11.11",
+  "source_cache": "data/msrvtt_real_10k/cser_expert_cache/gallery_cache.npz",
+  "source_job_id": "9814419",
+  "source_report_dir": "reports/cser_only/9814419",
+  "torch": "2.4.1+cu124",
+  "torch_cuda": "12.4"
+}

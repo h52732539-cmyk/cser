@@ -1,0 +1,41 @@
+{
+  "kind": "cser_gallery_expert_cache",
+  "cache_npz": "/hpc2hdd/home/yyan047/xuhaodong/cser/data/msrvtt_real_10k/cser_expert_cache/gallery_cache.npz",
+  "complete": true,
+  "n_videos_total": 10000,
+  "n_videos_loaded": 10000,
+  "failed_video_ids": [],
+  "feature_shapes": {
+    "clip_mean": [
+      10000,
+      512
+    ],
+    "highlight": [
+      10000
+    ],
+    "face": [
+      10000
+    ],
+    "face_emb": [
+      10000,
+      512
+    ]
+  },
+  "feature_dtype": "float32",
+  "created_at": "2026-06-09T20:49:23.280410+00:00",
+  "expert_class_names": {
+    "clip": "RealCLIPModel",
+    "highlight": "MomentDETRHighlightModel",
+    "face_det": "InsightFaceDetector",
+    "face_emb": "InsightFaceEmbedder",
+    "scene": "MobileNetV3SceneClassifier"
+  },
+  "checkpoint_paths": {
+    "clip": null,
+    "highlight": null,
+    "face_det": null,
+    "face_emb": null,
+    "scene": null
+  },
+  "mock_fallback_occurred": false
+}
