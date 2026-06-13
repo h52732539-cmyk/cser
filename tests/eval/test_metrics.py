@@ -39,6 +39,7 @@ class TestRetrievalMetrics(unittest.TestCase):
     def test_filtered_ranks(self):
         ranks = np.array([0, -1, 2])  # -1 = filtered out
         self.assertAlmostEqual(recall_at_k(ranks, 1), 1 / 3)
+        self.assertAlmostEqual(mrr(ranks), (1.0 + 0.0 + 1 / 3) / 3)
 
 
 class TestSafetyMetrics(unittest.TestCase):

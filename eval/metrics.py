@@ -30,10 +30,13 @@ def median_rank(ranks: np.ndarray) -> float:
 
 
 def mrr(ranks: np.ndarray) -> float:
-    valid = ranks[ranks >= 0]
-    if len(valid) == 0:
+    r = np.asarray(ranks)
+    if len(r) == 0:
         return 0.0
-    return float(np.mean(1.0 / (valid + 1)))
+    reciprocal_ranks = np.zeros(len(r), dtype=np.float64)
+    valid = r >= 0
+    reciprocal_ranks[valid] = 1.0 / (r[valid] + 1)
+    return float(reciprocal_ranks.mean())
 
 
 def retrieval_metrics(ranks: np.ndarray) -> Dict[str, float]:

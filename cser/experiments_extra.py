@@ -21,6 +21,8 @@ from .retrieval import RetrievalEngine
 from .value_oracle import build_oracle_labels, OracleLabels
 from .greedy import GreedyBudgetedSelector
 from .baselines import FixedCascade, oracle_mask
+from .conformal import MondrianConformal, gt_nonconformity, qpp_margin
+from .pipeline import CSERPipeline
 from eval.metrics import retrieval_metrics
 
 
@@ -77,6 +79,7 @@ def exp_e7_scalability(dataset, model, budget: float = 5.0,
             "cser_R@1": rm["R@1"], "cser_R@5": rm["R@5"],
             "cser_latency_ms": cl, "full_pipeline_latency_ms": fl,
             "speedup": float(fl / cl) if cl > 0 else 1.0,
+            "timing_scope": "cached_score_rerank_only",
         }
     return out
 
@@ -107,30 +110,46 @@ def _perturb_gallery(gallery, level: float, seed: int):
     return g
 
 
-def exp_e8_robustness(dataset, model, budget: float = 5.0, seed: int = 42) -> Dict:
+def exp_e8_robustness(dataset, model, budget: float = 5.0, seed: int = 42,
+                      alpha: float = 0.05, candidate_top_k: int = 100) -> Dict:
     levels = {"clean": 0.0, "mild": 0.1, "medium": 0.25, "heavy": 0.5}
-    n_eval = min(dataset.n_queries, 150)
-    q_ids = list(range(n_eval))
+    _, cal_idx, te_idx = dataset.split(seed=seed)
+    q_ids = list(te_idx[:min(len(te_idx), 150)])
     priors = [dataset.query_priors[i] for i in q_ids]
     gts = [dataset.gt_video_ids[i] for i in q_ids]
+
+    clean_eng = RetrievalEngine(dataset.gallery)
+    cal_sim = [clean_eng.semantic_norm(dataset.query_priors[i]) for i in cal_idx]
+    cal_gidx = [clean_eng.id_to_idx(dataset.gt_video_ids[i]) for i in cal_idx]
+    cal_scores = np.array([gt_nonconformity(cal_sim[k], cal_gidx[k])
+                           for k in range(len(cal_idx))])
+    cal_margins = np.array([qpp_margin(s) for s in cal_sim])
+    gate = MondrianConformal.calibrate(cal_scores, cal_margins, alpha, 3)
 
     out = {}
     for lvl, amt in levels.items():
         g = dataset.gallery if amt == 0.0 else _perturb_gallery(dataset.gallery, amt, seed)
         eng = RetrievalEngine(g)
         oracle = build_oracle_labels(eng, priors, gts, verbose=False)
-        sel = GreedyBudgetedSelector(model, budget=budget)
+        pipe = CSERPipeline(eng, model, conformal_gate=gate, budget=budget,
+                            candidate_top_k=candidate_top_k)
         casc = FixedCascade(budget=budget)
-        cser_ranks, casc_ranks = [], []
+        cser_ranks, casc_ranks, cser_filtered, candidate_counts = [], [], [], []
         for k in range(len(q_ids)):
-            rc = sel.select(oracle.query_feats[k])
-            cser_ranks.append(eng.rank_of_gt(priors[k], gts[k], rc.active_experts))
+            rc = pipe.run(priors[k], oracle.query_feats[k], gts[k])
+            cser_ranks.append(rc.rank)
+            cser_filtered.append(rc.gt_filtered)
+            candidate_counts.append(rc.candidate_count)
             mk = casc.select(oracle.query_feats[k])
             casc_ranks.append(eng.rank_of_gt(priors[k], gts[k], mask_to_names(mk)))
         out[lvl] = {
             "cser_R@1": retrieval_metrics(np.array(cser_ranks, np.int32))["R@1"],
             "cascade_R@1": retrieval_metrics(np.array(casc_ranks, np.int32))["R@1"],
-            "cser_GT_filtered": 0.0, "cascade_GT_filtered": 0.0,
+            "cser_GT_filtered": float(np.mean(cser_filtered)),
+            "cascade_GT_filtered": 0.0,
+            "cser_avg_candidates_after_filter": float(np.mean(candidate_counts)),
+            "cser_candidate_reduction_rate": float(
+                1.0 - np.mean(candidate_counts) / eng._N),
         }
     return out
 

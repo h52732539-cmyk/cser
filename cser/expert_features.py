@@ -47,10 +47,11 @@ class ModelBundle:
 
 
 def build_model_bundle(use_real: bool = False) -> ModelBundle:
-    """Construct the 5 experts; fall back to mocks if real weights are missing.
+    """Construct the 5 experts; fail closed when real weights are requested.
 
     Mirrors demo/run_benchmark_v2.py::build_models so behaviour is consistent
-    with the rest of the repo.
+    with the rest of the repo. Mock experts are used only when ``use_real`` is
+    false, so a paper run cannot silently degrade to synthetic adapters.
     """
     import sys
     from pathlib import Path
@@ -71,7 +72,7 @@ def build_model_bundle(use_real: bool = False) -> ModelBundle:
             print("[cser] using REAL expert models")
             return b
         except Exception as e:                       # missing weights / deps
-            print(f"[cser] real-model init failed ({e}); falling back to mocks")
+            raise RuntimeError(f"CSER real-model init failed: {e}") from e
 
     from tasks import (MockCLIPModel, MockHighlightModel, MockFaceDetector,
                        MockFaceEmbedder, MockSceneClassifier)

@@ -37,7 +37,7 @@ def setup():
     p, g = sub(tr); oracle_tr = build_oracle_labels(eng, p, g, verbose=False)
     p_te, g_te = sub(te); oracle_te = build_oracle_labels(eng, p_te, g_te, verbose=False)
     p_cal, g_cal = sub(cal)
-    model, _ = train_svn(oracle_tr, SVNTrainConfig(epochs=40, patience=40, seed=2),
+    model, _ = train_svn(oracle_tr, SVNTrainConfig(epochs=5, patience=5, seed=2),
                          verbose=False)
     return dict(ds=ds, eng=eng, model=model, oracle_te=oracle_te,
                 p_te=p_te, g_te=g_te, p_cal=p_cal, g_cal=g_cal)
@@ -56,6 +56,7 @@ def test_e8_robustness(setup):
     assert set(e8.keys()) == {"clean", "mild", "medium", "heavy"}
     for v in e8.values():
         assert v["cser_GT_filtered"] == 0.0 and 0.0 <= v["cser_R@1"] <= 1.0
+        assert 0.0 <= v["cser_candidate_reduction_rate"] <= 1.0
 
 
 def test_e9_expert_contribution(setup):
@@ -99,6 +100,7 @@ def test_theorem2_bound(setup):
                                   submod.gamma_ratio_p10, budget=5.0)
     assert thm2["realised_value_LHS"] >= thm2["bound_RHS"] - 1e-6
     assert 0.0 < thm2["approx_factor_(1-e^-gamma)"] <= 1.0
+    assert isinstance(thm2["bound_is_non_vacuous"], bool)
 
 
 def test_theorem3_combined(setup):
@@ -109,3 +111,26 @@ def test_theorem3_combined(setup):
                                     float(SEMANTIC_COST + OPTIONAL_COSTS[0]), 5.0)
     assert thm3["budget_compliance_holds"]
     assert isinstance(thm3["all_three_hold"], bool)
+
+
+def test_theorem3_rejects_vacuous_bound():
+    thm3 = verify_theorem3_combined(
+        {"holds": True},
+        {"bound_holds": True, "bound_is_non_vacuous": False,
+         "monotonicity_assumption_holds": True},
+        max_observed_cost=1.0,
+        budget=5.0,
+    )
+    assert not thm3["near_optimality_holds"]
+    assert not thm3["all_three_hold"]
+
+
+def test_theorem3_requires_explicit_assumption_evidence():
+    thm3 = verify_theorem3_combined(
+        {"holds": True},
+        {"bound_holds": True},
+        max_observed_cost=1.0,
+        budget=5.0,
+    )
+    assert not thm3["near_optimality_holds"]
+    assert not thm3["all_three_hold"]

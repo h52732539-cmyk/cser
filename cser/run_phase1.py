@@ -1,6 +1,7 @@
 """Phase-1 driver: data -> oracle labels -> train SVN -> verify submodularity.
 
-Uses the 5 real expert models (mock fallback) over a video gallery.
+Uses mock experts for synthetic runs or all 5 real experts when ``--real-models``
+is requested. Explicit real mode fails closed if any backbone cannot initialize.
 
     # framework smoke / synthetic (no external files, mock experts)
     python -m cser.run_phase1 --out-dir reports/cser_phase1
@@ -89,9 +90,14 @@ def main():
     ap.add_argument("--csv", default=None, help="real queries csv")
     ap.add_argument("--real-models", action="store_true",
                     help="use real expert backbones (needs weights)")
+    ap.add_argument("--gallery-cache", default=None,
+                    help="directory for reusable gallery expert cache")
     ap.add_argument("--metric", default="rr",
                     choices=["rr", "recall@1", "recall@5", "recall@10"])
     ap.add_argument("--epochs", type=int, default=300)
+    ap.add_argument("--train-device", default="auto",
+                    help="SVN training device: auto, cpu, cuda, or cuda:N")
+    ap.add_argument("--train-batch-size", type=int, default=256)
     ap.add_argument("--variant", default="full",
                     choices=["full", "no_cross_attn", "no_set_conditioning"])
     ap.add_argument("--seed", type=int, default=42)
@@ -105,7 +111,9 @@ def main():
     if args.videos:
         print(f"[1/5] Loading real video gallery from {args.videos}")
         ds = load_video_dataset(args.videos, args.csv,
-                                use_real_models=args.real_models, seed=args.seed)
+                                use_real_models=args.real_models,
+                                cache_dir=args.gallery_cache,
+                                seed=args.seed)
         source = "video"
     else:
         print("[1/5] Building synthetic gallery (mock experts, no external files)")
@@ -134,7 +142,13 @@ def main():
 
     # ── 3. Train SVN ──
     print("[3/5] Training Submodular Value Network ...")
-    cfg = SVNTrainConfig(epochs=args.epochs, variant=args.variant, seed=args.seed)
+    cfg = SVNTrainConfig(
+        epochs=args.epochs,
+        variant=args.variant,
+        seed=args.seed,
+        device=args.train_device,
+        batch_size=args.train_batch_size,
+    )
     model, history = train_svn(oracle_tr, cfg, save_dir=str(out / "svn"))
 
     # ── 4. Submodularity verification (E2) ──
@@ -161,6 +175,10 @@ def main():
     summary = {
         "source": source, "metric": args.metric, "svn_variant": args.variant,
         "real_models": args.real_models, "gallery_size": ds.gallery_size,
+        "n_videos_total": int(ds.n_videos_total),
+        "n_videos_loaded": int(ds.gallery_size),
+        "failed_video_ids": list(ds.failed_video_ids),
+        "gallery_cache_manifest": ds.cache_manifest,
         "n_queries": ds.n_queries,
         "split": {"train": int(len(tr_idx)), "cal": int(len(cal_idx)),
                   "test": int(len(te_idx))},

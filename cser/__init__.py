@@ -38,14 +38,14 @@ The 5 "frozen experts" of the plan are the real models in ``tasks/real_models.py
     e4 = scene      MobileNetV3  (classify scene)                -- optional
 
 Selecting an expert adds its (query-conditioned) score signal as a soft rerank
-on top of the semantic base; the GT video is never filtered out, so f(S,q) is
-well defined for all 16 subsets. Hard-filter safety is the Conformal Safety
-Gate's job. With 4 optional experts the subset lattice has only 2^4 = 16
-elements, so oracle marginal values are computed by exact enumeration.
+on top of the semantic base, so f(S,q) is well defined for all 16 subsets. The
+integrated pipeline applies a semantic top-k candidate prefilter and unions it
+with the Conformal Safety Gate's protected set. With 4 optional experts the
+subset lattice has only 2^4 = 16 elements, so oracle marginal values are
+computed by exact enumeration.
 
 Use real backbones with ``--real-models`` (needs weights); otherwise the mock
 models run so the whole pipeline is testable with no external files.
 """
 
 __version__ = "0.4.0-real-experts"
-

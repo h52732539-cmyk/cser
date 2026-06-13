@@ -45,11 +45,20 @@ class SVNTrainConfig:
     d_model: int = 128
     variant: str = "full"
     seed: int = 42
-    device: str = "cpu"
+    device: str = "auto"
 
     @classmethod
     def from_dict(cls, d: Dict) -> "SVNTrainConfig":
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
+def _resolve_device(requested: str) -> torch.device:
+    requested = requested.strip().lower()
+    if requested == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if requested.startswith("cuda") and not torch.cuda.is_available():
+        raise RuntimeError("CUDA training requested, but torch.cuda.is_available() is false")
+    return torch.device(requested)
 
 
 # ----------------------------------------------------------------------
@@ -114,7 +123,9 @@ def train_svn(labels: OracleLabels,
     config = config or SVNTrainConfig()
     torch.manual_seed(config.seed)
     np.random.seed(config.seed)
-    device = torch.device(config.device)
+    device = _resolve_device(config.device)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(config.seed)
 
     X_feat, X_mask, Y_marg, Y_valid = _build_examples(labels)
     M = X_feat.shape[0]
@@ -129,7 +140,12 @@ def train_svn(labels: OracleLabels,
             torch.from_numpy(X_feat[idx]), torch.from_numpy(X_mask[idx]),
             torch.from_numpy(Y_marg[idx]), torch.from_numpy(Y_valid[idx]),
         )
-        return DataLoader(ds, batch_size=config.batch_size, shuffle=shuffle)
+        return DataLoader(
+            ds,
+            batch_size=config.batch_size,
+            shuffle=shuffle,
+            pin_memory=device.type == "cuda",
+        )
 
     train_loader = _loader(tr_idx, True)
     val_loader = _loader(val_idx, False)
@@ -139,7 +155,8 @@ def train_svn(labels: OracleLabels,
         n_experts=N_OPTIONAL, variant=config.variant,
     ).to(device)
     if verbose:
-        print(f"[svn] variant={config.variant} params={model.param_count():,}")
+        print(f"[svn] variant={config.variant} params={model.param_count():,} "
+              f"device={device} batch_size={config.batch_size}")
 
     opt = torch.optim.AdamW(model.parameters(), lr=config.lr,
                             weight_decay=config.weight_decay)
@@ -158,7 +175,10 @@ def train_svn(labels: OracleLabels,
         model.train()
         tl = []
         for Xf, Xm, Ym, Yv in train_loader:
-            Xf, Xm, Ym, Yv = Xf.to(device), Xm.to(device), Ym.to(device), Yv.to(device)
+            Xf = Xf.to(device, non_blocking=True)
+            Xm = Xm.to(device, non_blocking=True)
+            Ym = Ym.to(device, non_blocking=True)
+            Yv = Yv.to(device, non_blocking=True)
             pred = model(Xf, Xm)
             loss = _masked_mse(pred, Ym, Yv)
             if config.lambda_sub > 0:
@@ -172,7 +192,10 @@ def train_svn(labels: OracleLabels,
         vl = []
         with torch.no_grad():
             for Xf, Xm, Ym, Yv in val_loader:
-                Xf, Xm, Ym, Yv = Xf.to(device), Xm.to(device), Ym.to(device), Yv.to(device)
+                Xf = Xf.to(device, non_blocking=True)
+                Xm = Xm.to(device, non_blocking=True)
+                Ym = Ym.to(device, non_blocking=True)
+                Yv = Yv.to(device, non_blocking=True)
                 vl.append(_masked_mse(model(Xf, Xm), Ym, Yv).item())
 
         tr_avg, val_avg = float(np.mean(tl)), float(np.mean(vl))
@@ -196,6 +219,9 @@ def train_svn(labels: OracleLabels,
 
     if best_state is not None:
         model.load_state_dict(best_state)
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    model.to("cpu")
     model.eval()
     elapsed = time.perf_counter() - t0
     if verbose:
@@ -214,6 +240,8 @@ def train_svn(labels: OracleLabels,
             "epochs_run": len(history["train_loss"]),
             "train_seconds": elapsed,
             "lambda_sub": config.lambda_sub,
+            "training_device": str(device),
+            "batch_size": config.batch_size,
         }, indent=2), encoding="utf-8")
         if verbose:
             print(f"[save] {p / 'svn.pt'}")

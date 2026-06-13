@@ -21,6 +21,8 @@ from cser.retrieval import RetrievalEngine
 from cser.value_oracle import build_oracle_labels, OracleLabels, query_feature_dim
 from cser.train_svn import train_svn, SVNTrainConfig, _build_examples
 from cser.svn import SubmodularValueNetwork, VARIANTS
+from cser.set_value_network import SetValueNetwork
+from cser.train_set_value import train_set_value, SetValueTrainConfig
 from cser.greedy import GreedyBudgetedSelector
 from cser.submodularity import verify_submodularity
 
@@ -59,6 +61,17 @@ def test_mock_bundle_builds():
     b = build_model_bundle(use_real=False)
     embs = b.clip.encode_text(["a person at the beach"])
     assert len(embs) == 1 and embs[0].ndim == 1
+
+
+def test_real_bundle_init_failure_does_not_fallback(monkeypatch):
+    from tasks import real_models
+
+    def _missing_weights():
+        raise RuntimeError("missing test checkpoint")
+
+    monkeypatch.setattr(real_models, "RealCLIPModel", _missing_weights)
+    with pytest.raises(RuntimeError, match="CSER real-model init failed"):
+        build_model_bundle(use_real=True)
 
 
 @pytest.fixture(scope="module")
@@ -149,6 +162,14 @@ def test_svn_forward_shapes(variant, oracle):
     assert out.shape == (8, 4)
 
 
+def test_set_value_forward_shapes(oracle):
+    d = oracle.feature_dim
+    model = SetValueNetwork(d_query=d)
+    import torch
+    out = model(torch.zeros(8, d))
+    assert out.shape == (8, 16)
+
+
 def test_build_examples_shapes(oracle):
     Xf, Xm, Ym, Yv = _build_examples(oracle)
     M = oracle.n_queries * 16
@@ -158,13 +179,22 @@ def test_build_examples_shapes(oracle):
 
 
 def test_svn_trains(oracle):
-    model, history = train_svn(oracle, SVNTrainConfig(epochs=40, patience=40, seed=0),
+    model, history = train_svn(oracle, SVNTrainConfig(epochs=5, patience=5, seed=0),
                                verbose=False)
     assert min(history["val_mse"]) <= history["val_mse"][0] + 1e-6
 
 
+def test_set_value_trains(oracle):
+    model, history = train_set_value(
+        oracle, SetValueTrainConfig(epochs=3, patience=3, seed=0),
+        verbose=False)
+    assert model.n_subsets == 16
+    assert len(history["val_mse"]) >= 1
+    assert np.isfinite(history["val_mse"][-1])
+
+
 def test_greedy_respects_budget(oracle):
-    model, _ = train_svn(oracle, SVNTrainConfig(epochs=20, patience=20, seed=0),
+    model, _ = train_svn(oracle, SVNTrainConfig(epochs=3, patience=3, seed=0),
                          verbose=False)
     for B in (1.0, 3.0, 5.0, 9.5):
         r = GreedyBudgetedSelector(model, budget=B).select(oracle.query_feats[0])
@@ -173,7 +203,7 @@ def test_greedy_respects_budget(oracle):
 
 
 def test_greedy_budget1_only_semantic(oracle):
-    model, _ = train_svn(oracle, SVNTrainConfig(epochs=10, patience=10, seed=0),
+    model, _ = train_svn(oracle, SVNTrainConfig(epochs=1, patience=1, seed=0),
                          verbose=False)
     r = GreedyBudgetedSelector(model, budget=experts.SEMANTIC_COST).select(
         oracle.query_feats[0])

@@ -15,11 +15,13 @@ from cser.data import build_synthetic_dataset
 from cser.retrieval import RetrievalEngine
 from cser.value_oracle import build_oracle_labels
 from cser.train_svn import train_svn, SVNTrainConfig
+from cser.train_set_value import train_set_value, SetValueTrainConfig
 from cser.conformal import (SplitConformal, MondrianConformal, conformal_quantile,
                             gt_nonconformity, qpp_margin, evaluate_coverage)
 from cser.pipeline import CSERPipeline
 from cser.baselines import (AllExperts, RandomSelect, FixedCascade, UCBBandit,
                             oracle_mask)
+from cser.selectors import build_selector
 from cser.experts import N_OPTIONAL, SEMANTIC_COST, OPTIONAL_COSTS, mask_to_id
 
 
@@ -35,7 +37,7 @@ def setup():
     p, g = sub(tr); oracle_tr = build_oracle_labels(eng, p, g, verbose=False)
     p_cal, g_cal = sub(cal); oracle_cal = build_oracle_labels(eng, p_cal, g_cal, verbose=False)
     p_te, g_te = sub(te); oracle_te = build_oracle_labels(eng, p_te, g_te, verbose=False)
-    model, _ = train_svn(oracle_tr, SVNTrainConfig(epochs=30, patience=30, seed=1),
+    model, _ = train_svn(oracle_tr, SVNTrainConfig(epochs=5, patience=5, seed=1),
                          verbose=False)
     fdim = oracle_tr.feature_dim
     return dict(ds=ds, eng=eng, model=model, oracle_te=oracle_te,
@@ -109,6 +111,72 @@ def test_pipeline_coverage(setup):
         covered.append(res.gt_in_conformal_set)
         assert 1 <= res.conformal_set_size <= eng._N
     assert np.mean(covered) >= 0.75
+
+
+def test_pipeline_prefilter_can_remove_gt_without_gate(setup):
+    eng, model, oracle = setup["eng"], setup["model"], setup["oracle_te"]
+    pipe = CSERPipeline(eng, model, conformal_gate=None, budget=5.0,
+                        candidate_top_k=1)
+    results = [
+        pipe.run(setup["p_te"][i], oracle.query_feats[i], setup["g_te"][i])
+        for i in range(len(setup["g_te"]))
+    ]
+    assert any(res.gt_filtered for res in results)
+    assert all(res.candidate_count == 1 for res in results)
+
+
+def test_pipeline_gate_protects_prediction_set(setup):
+    eng, model, oracle = setup["eng"], setup["model"], setup["oracle_te"]
+    gate = SplitConformal(alpha=0.10, threshold=float("inf"), n_calib=0)
+    pipe = CSERPipeline(eng, model, conformal_gate=gate, budget=5.0,
+                        candidate_top_k=1)
+    for i in range(len(setup["g_te"])):
+        res = pipe.run(setup["p_te"][i], oracle.query_feats[i], setup["g_te"][i])
+        assert not res.gt_filtered
+        assert res.candidate_count == eng._N
+        assert res.candidate_reduction_rate == 0.0
+
+
+def test_pipeline_report_mode_does_not_reduce_candidates(setup):
+    eng, model, oracle = setup["eng"], setup["model"], setup["oracle_te"]
+    gate = SplitConformal(alpha=0.10, threshold=0.0, n_calib=0)
+    pipe = CSERPipeline(eng, model, conformal_gate=gate, budget=5.0,
+                        candidate_top_k=1, safety_mode="report")
+    for i in range(len(setup["g_te"])):
+        res = pipe.run(setup["p_te"][i], oracle.query_feats[i], setup["g_te"][i])
+        assert not res.gt_filtered
+        assert res.candidate_count == eng._N
+        assert res.candidate_reduction_rate == 0.0
+
+
+def test_no_face_id_roster_blocks_face_id(setup):
+    selector = build_selector(
+        "marginal_value_greedy",
+        budget=9.5,
+        roster="no_face_id",
+        svn_model=setup["model"],
+    )
+    for qf in setup["oracle_te"].query_feats[:8]:
+        res = selector.select(qf)
+        assert not res.selected_mask[2]
+
+
+def test_set_value_safe_min_delta_falls_back(setup):
+    sv_model, _ = train_set_value(
+        setup["oracle_te"],
+        SetValueTrainConfig(epochs=1, patience=1, seed=3),
+        verbose=False,
+    )
+    selector = build_selector(
+        "set_value_safe",
+        budget=9.5,
+        roster="all",
+        set_value_model=sv_model,
+        min_delta=10.0,
+    )
+    res = selector.select(setup["oracle_te"].query_feats[0])
+    assert res.fallback_triggered
+    assert res.selected_mask.sum() == 0
 
 
 # ---- baselines ----

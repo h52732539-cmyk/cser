@@ -113,8 +113,9 @@ python -m cser.run_phase3 --out-dir reports/cser_phase3
 #   + empirical check that Theorems 1/2/3 bounds hold on held-out data
 ```
 
-Common flags (all phases): `--epochs`, `--budget` (compute budget B in expert
-calls), `--alpha` (conformal level), `--seed`, `--metric {rr,recall@1,recall@5,recall@10}`.
+Common flags (all phases): `--epochs`, `--budget` (offline expert-index access
+proxy B), `--alpha` (conformal level), `--seed`, `--metric {rr,recall@1,recall@5,recall@10}`.
+Phase 2 and Phase 3 also accept `--candidate-top-k` for semantic prefiltering.
 
 ---
 
@@ -143,29 +144,38 @@ python -m cser.run_phase1 --out-dir reports/big --epochs 400 \
 **Train just the SVN in your own script** (the programmatic entry points):
 
 ```python
-from cser.data import build_synthetic_dataset      # or load_msrvtt_dataset
+import numpy as np
+
+from cser.data import build_synthetic_dataset      # or load_video_dataset
 from cser.retrieval import RetrievalEngine
 from cser.value_oracle import build_oracle_labels
 from cser.train_svn import train_svn, SVNTrainConfig
+from cser.conformal import SplitConformal, gt_nonconformity
 
 ds = build_synthetic_dataset(n_videos=800, n_queries=300, seed=0)
-eng = RetrievalEngine(ds.index, ds.meta_filter)
+eng = RetrievalEngine(ds.gallery)
 tr, cal, te = ds.split(seed=0)
-emb = ds.query_embs[tr]
 labels = build_oracle_labels(
-    eng, emb, [ds.query_texts[i] for i in tr],
-    [ds.gt_video_ids[i] for i in tr], [ds.intents[i] for i in tr])
+    eng, [ds.query_priors[i] for i in tr], [ds.gt_video_ids[i] for i in tr])
 model, history = train_svn(labels, SVNTrainConfig(epochs=300, variant="full"))
+
+cal_sim = [eng.semantic_norm(ds.query_priors[i]) for i in cal]
+cal_scores = np.array([
+    gt_nonconformity(sn, eng.id_to_idx(ds.gt_video_ids[i]))
+    for sn, i in zip(cal_sim, cal)
+])
+gate = SplitConformal.calibrate(cal_scores, alpha=0.05)
 ```
 
 Then run inference with the integrated pipeline:
 
 ```python
 from cser.pipeline import CSERPipeline
-pipe = CSERPipeline(eng, model, conformal_gate=None, budget=3.0)
-res = pipe.run(ds.query_embs[0], labels.query_feats[0],
-               ds.gt_video_ids[0], ds.intents[0])
-print(res.rank, res.cost, res.active_axes, res.gt_in_conformal_set)
+pipe = CSERPipeline(
+    eng, model, conformal_gate=gate, budget=3.0, candidate_top_k=100)
+q = int(tr[0])
+res = pipe.run(ds.query_priors[q], labels.query_feats[0], ds.gt_video_ids[q])
+print(res.rank, res.cost, res.active_experts, res.candidate_count)
 ```
 
 ---
@@ -177,7 +187,7 @@ need the real backbones run over real videos. Two things are required:
 
 1. **Model weights.** SCRFD / ArcFace (InsightFace) and MobileNetV3 (torchvision)
    auto-download. MobileCLIP2-S0 and MomentDETR need checkpoint files — see the
-   hardcoded paths in `tasks/real_models.py` and point them at your copies.
+   environment variables in `tasks/real_models.py` and point them at your copies.
 2. **A video gallery + queries.** A directory of `.mp4` files (or a
    `manifest.json` of `[{"id","path"}]`) and a queries CSV with columns
    `sentence`, `video_id`.
@@ -191,9 +201,9 @@ python -m cser.run_phase2 --out-dir reports/real \
     --real-models --epochs 300
 ```
 
-If a real model fails to construct (missing weight/dep), CSER prints a warning
-and **falls back to the mock** for that run — so the command never hard-crashes,
-but check the log to confirm you actually got the real backbones.
+If a real model fails to construct (missing weight/dep), CSER stops and reports
+the initialization error. Explicit `--real-models` runs never silently fall back
+to mocks.
 
 > ⚠️ **Do not quote synthetic / mock-expert numbers in the paper.** The mock
 > models are deterministic stand-ins. Real numbers require `--real-models` over a
@@ -264,4 +274,3 @@ python -m cser.run_phase3 --out-dir reports/cser_phase3   # 4. extended + theory
 
 When you have the real `msrvtt_cache.npz`, re-run Phases 2–3 with `--cache ...`
 to produce paper-ready numbers.
-

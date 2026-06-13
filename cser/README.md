@@ -29,9 +29,10 @@ gate, the integrated pipeline, and the experiment battery.
 | E7/E8/E9/E10 — scalability/robustness/contribution/oracle | `experiments_extra.py`, `run_phase3.py` | ✅ |
 | Theorems 1/2/3 — proofs + empirical checks | `docs/delivery/CSER_THEOREMS.md`, `theory.py` | ✅ |
 
-**Not yet done**: running with real model weights over a real video gallery
-(weights are not in this repo) and drafting the paper prose. Everything runs
-today on a self-contained synthetic frame gallery with mock experts.
+Job `9801800` completed a real-model MSR-VTT 1K diagnostic run. It is not yet a
+paper-ready protocol: the router objective, final train/calibration/test split,
+end-to-end latency measurement, and baseline coverage still need follow-up.
+Synthetic mock-expert runs remain available for logic validation.
 
 **Full plan-to-code map**: see [CSER_IMPLEMENTATION.md](CSER_IMPLEMENTATION.md).
 **Formal proofs**: see [../docs/delivery/CSER_THEOREMS.md](../docs/delivery/CSER_THEOREMS.md).
@@ -51,10 +52,11 @@ e4 = scene      MobileNetV3   classify(frames) -> label       optional,      cos
 
 `expert_features.py` runs all 5 models over each gallery video once and caches
 per-video signals; selecting an optional expert adds its query-conditioned score
-as a **soft** rerank, so the GT video is never eliminated and `f(S, q)` is well
-defined for all 16 subsets (hard-filter safety is the Conformal Safety Gate's
-job). With only 4 optional experts the lattice has 2⁴ = 16 elements, so oracle
-marginal values are computed by **exact enumeration** — no Monte-Carlo sampling.
+as a **soft** rerank, so `f(S, q)` is well defined for all 16 subsets. At
+inference, the integrated pipeline retains the semantic top-k candidates plus
+every candidate protected by the Conformal Safety Gate. With only 4 optional
+experts the lattice has 2⁴ = 16 elements, so oracle marginal values are computed
+by **exact enumeration** — no Monte-Carlo sampling.
 
 ## Run
 
@@ -75,12 +77,14 @@ python -m cser.run_phase3 --out-dir reports/cser_phase3
 
 # real numbers: real backbones over a real video gallery (all phases accept these)
 python -m cser.run_phase2 --out-dir reports/cser_phase2_real \
-    --videos /path/to/videos_dir --csv /path/to/queries.csv --real-models
+    --videos /path/to/videos_dir --csv /path/to/queries.csv --real-models \
+    --candidate-top-k 100
 ```
 
 The pipeline is **gallery-agnostic**: with no `--videos` it builds a synthetic
 frame gallery and uses the mock experts (no external files); pass `--videos` +
-`--real-models` to decode real videos and run the real backbones.
+`--real-models` to decode real videos and run the real backbones. Explicit real
+mode fails closed if any backbone cannot initialize.
 
 ## Outputs (`--out-dir`)
 
@@ -92,11 +96,11 @@ frame gallery and uses the mock experts (no external files); pass `--videos` +
 - `phase1_summary.json` — roll-up
 
 **Phase 2** (`run_phase2`):
-- `e1_main_results.json` — CSER vs baselines (R@1/R@5/MRR/cost/coverage)
+- `e1_main_results.json` — CSER vs baselines (retrieval/cost/safety/candidate reduction)
 - `e3_conformal.json` — coverage vs α, split vs Mondrian set sizes (**E3 claim**)
 - `e4_budget_curve.json` — R@1 vs avg experts across budgets 1..5
 - `e5_svn_ablation.json` — SVN variants + submod-loss on/off
-- `e6_safety_ablation.json` — conformal vs heuristic vs no-gate
+- `e6_safety_ablation.json` — conformal vs heuristic vs no-gate filtering
 - `phase2_summary.json` — roll-up + production gate config
 
 ## Reading the E2 verdict

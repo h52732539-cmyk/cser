@@ -31,6 +31,9 @@ import numpy as np
 #  Shared helpers
 # ----------------------------------------------------------------------
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_MODEL_ROOT = Path(os.environ.get("LITEVTR_MODEL_DIR", _REPO_ROOT / "models"))
+
 
 def _frame_hash(img: np.ndarray) -> bytes:
     """Cheap content-addressable key for frame arrays.
@@ -97,7 +100,7 @@ class RealCLIPModel:
 
     def __init__(
         self,
-        local_ckpt: str = "E:/Work/HKUST(2025)/video_query/video_retrieval_code_no_dataset/models/mobileclip2/mobileclip2_s0.pt",
+        local_ckpt: str | None = None,
         model_name: str = "MobileCLIP2-S0",
         device: str | None = None,
         cache_dir: str | None = None,
@@ -105,6 +108,9 @@ class RealCLIPModel:
         frame_cache_size: int = 4096,
     ) -> None:
         import torch
+        local_ckpt = local_ckpt or os.environ.get(
+            "MOBILECLIP_CKPT", str(_MODEL_ROOT / "mobileclip2" / "mobileclip2_s0.pt")
+        )
         try:
             import open_clip  # noqa: F401
         except ImportError as e:
@@ -214,8 +220,8 @@ class MomentDETRHighlightModel:
 
     def __init__(
         self,
-        ckpt_path: str = "E:/Work/HKUST(2025)/video_query/video_retrieval_code_no_dataset/repos/moment_detr/run_on_video/moment_detr_ckpt/model_best.ckpt",
-        moment_detr_repo: str = "E:/Work/HKUST(2025)/video_query/video_retrieval_code_no_dataset/repos/moment_detr",
+        ckpt_path: str | None = None,
+        moment_detr_repo: str | None = None,
         clip_model_name: str = "ViT-B/32",
         prompt: str | None = None,
         device: str | None = None,
@@ -223,6 +229,14 @@ class MomentDETRHighlightModel:
         feat_cache_size: int = 4096,
     ) -> None:
         import torch
+        moment_detr_repo = moment_detr_repo or os.environ.get(
+            "MOMENT_DETR_REPO", str(_MODEL_ROOT / "moment_detr")
+        )
+        ckpt_path = ckpt_path or os.environ.get(
+            "MOMENT_DETR_CKPT",
+            str(Path(moment_detr_repo) / "run_on_video" / "moment_detr_ckpt" /
+                "model_best.ckpt"),
+        )
         if not os.path.isfile(ckpt_path):
             raise RuntimeError(f"MomentDETR ckpt not found: {ckpt_path}")
         if not os.path.isdir(moment_detr_repo):
@@ -396,8 +410,34 @@ class _InsightFaceBundle:
                 "insightface package required. pip install insightface"
             ) from e
 
-        providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
-        kwargs = {"providers": providers}
+        import onnxruntime as ort
+
+        session_options = ort.SessionOptions()
+        session_options.intra_op_num_threads = int(
+            os.environ.get("ORT_INTRA_OP_NUM_THREADS", "1")
+        )
+        session_options.inter_op_num_threads = int(
+            os.environ.get("ORT_INTER_OP_NUM_THREADS", "1")
+        )
+        available = set(ort.get_available_providers())
+        if ctx_id >= 0 and "CUDAExecutionProvider" not in available:
+            raise RuntimeError(
+                "InsightFace requested GPU execution, but ONNX Runtime has no "
+                f"CUDAExecutionProvider; available providers: {sorted(available)}"
+            )
+        providers = [
+            provider
+            for provider in ("CUDAExecutionProvider", "CPUExecutionProvider")
+            if provider in available
+        ]
+        if not providers:
+            raise RuntimeError(
+                f"no supported InsightFace ONNX provider found: {sorted(available)}"
+            )
+        kwargs = {
+            "providers": providers,
+            "sess_options": session_options,
+        }
         if root:
             kwargs["root"] = root
         app = FaceAnalysis(name="buffalo_l", **kwargs)
@@ -422,6 +462,7 @@ class InsightFaceDetector:
         ctx_id: int = 0,   # 0 = GPU (CUDAExecutionProvider), -1 = CPU
         root: str | None = None,
     ) -> None:
+        root = root or os.environ.get("INSIGHTFACE_ROOT")
         self.app = _InsightFaceBundle.get(det_size=det_size, ctx_id=ctx_id,
                                           root=root)
         self.det_threshold = det_threshold
@@ -461,6 +502,7 @@ class InsightFaceEmbedder:
         ctx_id: int = 0,   # 0 = GPU (CUDAExecutionProvider), -1 = CPU
         root: str | None = None,
     ) -> None:
+        root = root or os.environ.get("INSIGHTFACE_ROOT")
         self.app = _InsightFaceBundle.get(det_size=det_size, ctx_id=ctx_id,
                                           root=root)
         self.dim = 512
@@ -520,6 +562,12 @@ class MobileNetV3SceneClassifier:
         import torch
         from torchvision import models
 
+        places365_ckpt = places365_ckpt or os.environ.get(
+            "MOBILENETV3_PLACES365_CKPT"
+        )
+        places365_categories = places365_categories or os.environ.get(
+            "MOBILENETV3_PLACES365_CATEGORIES"
+        )
         self.torch = torch
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.use_fp16 = use_fp16 and self.device.startswith("cuda")

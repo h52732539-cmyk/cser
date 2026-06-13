@@ -18,25 +18,25 @@ picking up the project.
 | Module 1 — Submodular Value Network (§4.2) | `svn.py`, `train_svn.py` | ✅ |
 | Module 2 — Conformal Safety Gate (§4.3) | `conformal.py` | ✅ |
 | Module 3 — Greedy Budgeted Selector (§4.4) | `greedy.py` | ✅ |
-| Integrated pipeline + combined guarantee (§4.1, §4.5) | `pipeline.py` | ✅ |
-| Theorems 1/2/3 (§5) | `docs/delivery/CSER_THEOREMS.md` + `theory.py` | ✅ proofs + empirical checks |
+| Integrated pipeline + combined-guarantee diagnostics (§4.1, §4.5) | `pipeline.py` | ✅ |
+| Theorems 1/2/3 (§5) | `docs/delivery/CSER_THEOREMS.md` + `theory.py` | ⚠️ checks implemented; T2/T3 not supported by job 9801800 |
 | E1 main comparison (§7) | `run_phase2.py` | ✅ |
 | E2 submodularity verification (§7) | `submodularity.py`, `run_phase1.py` | ✅ |
 | E3 conformal coverage (§7) | `run_phase2.py` | ✅ |
 | E4 budget curve (§7) | `run_phase2.py` | ✅ |
 | E5 SVN ablation (§7) | `run_phase2.py` | ✅ |
 | E6 safety ablation (§7) | `run_phase2.py` | ✅ |
-| E7 scalability (§7) | `experiments_extra.py`, `run_phase3.py` | ✅ |
+| E7 scalability (§7) | `experiments_extra.py`, `run_phase3.py` | ⚠️ cached-score rerank timing only |
 | E8 robustness (§7) | `experiments_extra.py`, `run_phase3.py` | ✅ |
 | E9 expert contribution (§7) | `experiments_extra.py`, `run_phase3.py` | ✅ |
 | E10 oracle comparison (§7) | `experiments_extra.py`, `run_phase3.py` | ✅ |
 
-**All three modules, all ten experiments, and all three theorems are
-implemented, wired to the repo's 5 real expert models** (`tasks/real_models.py`,
-mock fallback `tasks/mock_models.py`). What remains is *running with real model
-weights over a real video gallery* (weights are not in this repo) and drafting
-the paper prose. Everything runs today on a self-contained synthetic frame
-gallery with mock experts for logic validation.
+**All three modules and all ten diagnostic experiments are implemented and wired
+to the repo's 5 real expert models** (`tasks/real_models.py`; explicit synthetic
+runs use `tasks/mock_models.py`). Job `9801800` completed a real-model MSR-VTT 1K
+diagnostic run. Its measured monotonicity violations, vacuous greedy lower bound,
+cached-score-only latency scope, and protocol caveats prevent treating the
+current outputs as paper-ready claims.
 
 ---
 
@@ -61,20 +61,23 @@ How it works:
   confidence, mean ArcFace embedding, scene distribution). This mirrors the repo's
   offline-index philosophy: heavy model work happens once, queries are cheap.
 - **Selecting an expert = adding its query-conditioned score as a soft rerank**
-  on top of the semantic base (`retrieval.py`). The GT video is never filtered
-  out, so f(S,q) is defined for all 16 subsets and the ranking always contains
-  v*. Hard-filter safety is the Conformal Safety Gate's separate job.
+  on top of the semantic base (`retrieval.py`). The value lattice never filters
+  candidates, so f(S,q) is defined for all 16 subsets. The integrated pipeline
+  applies semantic top-k candidate filtering and unions the result with the
+  Conformal Safety Gate's protected set.
 - Experts have **overlapping, complementary** value (face + scene both fire on
   "a person at the beach") — the source of the submodularity the paper studies.
-- **Cost is real**: budget is measured in model-call units (semantic 1.0 →
-  face_id 3.0), per the plan's "model calls × frames" budget. Full set = 9.5.
+- **Cost is a proxy**: budget is measured in configured offline expert-index
+  access units (semantic 1.0 → face_id 3.0). Full set = 9.5. It is not measured
+  end-to-end model execution latency.
 - Only 4 optional experts ⇒ $2^4 = 16$ subsets ⇒ oracle marginal values by **exact
   enumeration**, no Monte-Carlo.
 
 Run with real backbones via `--real-models` (needs weights); otherwise the mock
-models run so the whole pipeline is testable with no external files. **To swap in
-different models, only `experts.py` (roster/costs) and `expert_features.py`
-(how a model's output becomes a signal) change** — SVN / conformal / greedy are
+models run so the whole pipeline is testable with no external files. Explicit
+`--real-models` runs fail closed if a backbone cannot initialize. **To swap in
+different models, only `experts.py` (roster/costs) and `expert_features.py` (how
+a model's output becomes a signal) change** — SVN / conformal / greedy are
 agnostic.
 
 ---
@@ -122,8 +125,10 @@ step). This is the policy whose value Theorem 2 bounds.
 ### 3.4 Integrated pipeline — `pipeline.py`
 
 `CSERPipeline.run` ties the three modules into one query-time call and returns a
-`CSERResult` (rank, cost, experts used, conformal coverage indicator, set size).
-Handles `gate=None` for the no-safety ablation.
+`CSERResult` (rank, cost, experts used, conformal coverage indicator, protected
+set size, candidate count, candidate reduction rate). It handles `gate=None`
+for the no-safety ablation and retains every member of `C(q)` when a gate is
+configured.
 
 ---
 
@@ -188,7 +193,8 @@ python -m cser.run_phase2 --out-dir reports/cser_phase2_real \
 
 `cser/data.py::load_video_dataset` decodes frames, runs the 5 experts via
 `expert_features.extract_gallery_signals`, then the same pipeline applies. If a
-real model can't construct, CSER warns and falls back to its mock for that run.
+real model cannot construct, CSER stops the run and reports the initialization
+error.
 
 ---
 
@@ -266,4 +272,3 @@ CSER_IMPLEMENTATION.md  this document
 
 Related: `docs/delivery/CSER_THEOREMS.md` (formal proofs),
 `docs/delivery/AAAI_UPGRADED_PLAN.md` (the plan).
-

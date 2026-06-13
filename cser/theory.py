@@ -13,7 +13,7 @@ theoretical claims empirically" step of the plan (§10 Week 7).
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -72,7 +72,8 @@ def measure_surrogate_error(model: SubmodularValueNetwork,
 
 
 def verify_theorem2_greedy(model, oracle: OracleLabels, gamma: float,
-                           budget: float = 3.0) -> Dict:
+                           budget: float = 3.0,
+                           monotonicity_violation_rate: Optional[float] = None) -> Dict:
     """Check f(S_greedy) ≥ (1 - e^{-γ})·f(S*) - K·ε per query (mean form)."""
     eps = measure_surrogate_error(model, oracle)
     K = N_OPTIONAL
@@ -93,6 +94,11 @@ def verify_theorem2_greedy(model, oracle: OracleLabels, gamma: float,
         "K": K,
         "realised_value_LHS": lhs,
         "bound_RHS": rhs,
+        "bound_is_non_vacuous": bool(rhs > 0.0),
+        "monotonicity_violation_rate": monotonicity_violation_rate,
+        "monotonicity_assumption_holds": bool(
+            monotonicity_violation_rate is not None
+            and monotonicity_violation_rate <= 1e-4),
         "oracle_value": float(best.mean()),
         "realised_pct_of_oracle": float(lhs / max(best.mean(), 1e-9)),
         "bound_holds": bool(lhs >= rhs - 1e-9),
@@ -106,11 +112,19 @@ def verify_theorem2_greedy(model, oracle: OracleLabels, gamma: float,
 def verify_theorem3_combined(thm1: Dict, thm2: Dict,
                              max_observed_cost: float, budget: float) -> Dict:
     budget_ok = bool(max_observed_cost <= budget + 1e-6)
+    near_optimality_ok = bool(
+        thm2["bound_holds"]
+        and thm2.get("bound_is_non_vacuous", False)
+        and thm2.get("monotonicity_assumption_holds", False)
+    )
     return {
         "coverage_holds": thm1["holds"],
-        "near_optimality_holds": thm2["bound_holds"],
+        "near_optimality_holds": near_optimality_ok,
+        "near_optimality_bound_holds": thm2["bound_holds"],
+        "near_optimality_bound_is_non_vacuous": thm2.get("bound_is_non_vacuous", False),
+        "monotonicity_assumption_holds": thm2.get("monotonicity_assumption_holds", False),
         "budget_compliance_holds": budget_ok,
         "max_observed_cost": max_observed_cost,
         "budget": budget,
-        "all_three_hold": bool(thm1["holds"] and thm2["bound_holds"] and budget_ok),
+        "all_three_hold": bool(thm1["holds"] and near_optimality_ok and budget_ok),
     }

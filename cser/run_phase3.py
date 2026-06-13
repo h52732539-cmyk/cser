@@ -1,6 +1,7 @@
 """Phase-3 driver: experiments E7-E10 + empirical theorem verification.
 
-Real-expert version (5 models via mock fallback over a video gallery).
+Uses mock experts for synthetic runs or all 5 real experts when ``--real-models``
+is requested. Explicit real mode fails closed if any backbone cannot initialize.
 
     # synthetic (mock experts)
     python -m cser.run_phase3 --out-dir reports/cser_phase3
@@ -47,22 +48,33 @@ def main():
     ap.add_argument("--videos", default=None)
     ap.add_argument("--csv", default=None)
     ap.add_argument("--real-models", action="store_true")
+    ap.add_argument("--gallery-cache", default=None,
+                    help="directory for reusable gallery expert cache")
     ap.add_argument("--metric", default="rr",
                     choices=["rr", "recall@1", "recall@5", "recall@10"])
     ap.add_argument("--epochs", type=int, default=200)
+    ap.add_argument("--train-device", default="auto",
+                    help="SVN training device: auto, cpu, cuda, or cuda:N")
+    ap.add_argument("--train-batch-size", type=int, default=256)
     ap.add_argument("--budget", type=float, default=5.0)
     ap.add_argument("--alpha", type=float, default=0.05)
+    ap.add_argument("--candidate-top-k", type=int, default=100,
+                    help="semantic candidates retained before safety-gate protection")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--syn-videos", type=int, default=500)
     ap.add_argument("--syn-queries", type=int, default=300)
     args = ap.parse_args()
+    if args.candidate_top_k <= 0:
+        ap.error("--candidate-top-k must be positive")
 
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
 
     if args.videos:
         print(f"[data] real video gallery from {args.videos}")
         ds = load_video_dataset(args.videos, args.csv,
-                                use_real_models=args.real_models, seed=args.seed)
+                                use_real_models=args.real_models,
+                                cache_dir=args.gallery_cache,
+                                seed=args.seed)
         source = "video"
     else:
         print("[data] synthetic gallery (mock experts)")
@@ -87,7 +99,13 @@ def main():
     oracle_te = build_oracle_labels(engine, p_te, g_te, metric=args.metric, verbose=False)
 
     print("[svn] training ...")
-    cfg = SVNTrainConfig(epochs=args.epochs, variant="full", seed=args.seed)
+    cfg = SVNTrainConfig(
+        epochs=args.epochs,
+        variant="full",
+        seed=args.seed,
+        device=args.train_device,
+        batch_size=args.train_batch_size,
+    )
     model, _ = train_svn(oracle_tr, cfg, save_dir=str(out / "svn"), verbose=False)
 
     # ── Conformal gate (Theorem 1) ──
@@ -104,7 +122,8 @@ def main():
     e7 = exp_e7_scalability(ds, model, budget=args.budget, seed=args.seed)
     (out / "e7_scalability.json").write_text(json.dumps(e7, indent=2, default=str))
     print("[E8] robustness ...")
-    e8 = exp_e8_robustness(ds, model, budget=args.budget, seed=args.seed)
+    e8 = exp_e8_robustness(ds, model, budget=args.budget, seed=args.seed,
+                           alpha=args.alpha, candidate_top_k=args.candidate_top_k)
     (out / "e8_robustness.json").write_text(json.dumps(e8, indent=2, default=str))
     print("[E9] expert contribution ...")
     e9 = exp_e9_expert_contribution(oracle_te, model)
@@ -117,7 +136,9 @@ def main():
     submod = verify_submodularity(oracle_te)
     thm1 = verify_theorem1_coverage(gate, te_sim, te_gidx)
     thm2 = verify_theorem2_greedy(model, oracle_te, submod.gamma_ratio_p10,
-                                  budget=args.budget)
+                                  budget=args.budget,
+                                  monotonicity_violation_rate=(
+                                      submod.monotonicity_violation_rate))
     feasible_max = max(
         SEMANTIC_COST + OPTIONAL_COSTS[m].sum()
         for m in all_optional_masks()
@@ -130,7 +151,14 @@ def main():
     summary = {
         "source": source, "metric": args.metric, "budget": args.budget,
         "alpha": args.alpha, "real_models": args.real_models,
-        "gallery_size": ds.gallery_size, "n_queries": ds.n_queries,
+        "candidate_top_k": args.candidate_top_k,
+        "latency_scope": "cached_score_rerank_only",
+        "gallery_size": ds.gallery_size,
+        "n_videos_total": int(ds.n_videos_total),
+        "n_videos_loaded": int(ds.gallery_size),
+        "failed_video_ids": list(ds.failed_video_ids),
+        "gallery_cache_manifest": ds.cache_manifest,
+        "n_queries": ds.n_queries,
         "e7_scalability": e7, "e8_robustness": e8,
         "e9_expert_contribution": e9, "e10_oracle_comparison": e10,
         "theorem_verification": theorems,
@@ -144,7 +172,7 @@ def main():
           f"target={thm1['target_coverage']:.3f}  holds={thm1['holds']}")
     print(f"Theorem 2 (greedy):    LHS={thm2['realised_value_LHS']:.3f} "
           f"RHS={thm2['bound_RHS']:.3f}  eps={thm2['surrogate_error_eps']:.4f}  "
-          f"holds={thm2['bound_holds']}")
+          f"holds={thm2['bound_holds']}  non_vacuous={thm2['bound_is_non_vacuous']}")
     print(f"Theorem 3 (combined):  all_hold={thm3['all_three_hold']}")
     print(f"E10 CSER % of oracle:  {e10['cser_svn_greedy']['pct_of_oracle']:.1%}")
     print(f"E9 expert ranking:     {e9['expert_ranking_by_value']}")

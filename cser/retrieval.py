@@ -20,9 +20,10 @@ Every video carries cached expert signals (``GallerySignals``, produced once by
   (only meaningful when a reference face is given; otherwise neutral).
 * **scene:** boost videos whose dominant scene matches the query's scene cue.
 
-Selected experts are blended additively into the score; the GT video is never
-removed (no hard filtering), so f(S,q) is well defined for all 16 subsets and the
-ranking always contains v*. Hard-filter safety is the Conformal Safety Gate's job.
+Selected experts are blended additively into the score; the value lattice never
+removes the GT video, so f(S,q) is well defined for all 16 subsets. The integrated
+pipeline may apply a candidate mask after scoring; protecting that mask is the
+Conformal Safety Gate's job.
 
 This design gives experts genuinely *overlapping, complementary* value
 (face + scene both fire on "a person at the beach"), which is the source of the
@@ -116,16 +117,39 @@ class RetrievalEngine:
         """Normalised semantic similarity in [0,1] — basis of the conformal score."""
         return self.semantic_scores(priors)
 
+    def semantic_top_k_mask(self, sim_norm: np.ndarray, top_k: int) -> np.ndarray:
+        """Keep the strongest semantic candidates before expert reranking."""
+        if top_k <= 0:
+            raise ValueError("top_k must be positive")
+        scores = np.asarray(sim_norm)
+        if scores.shape != (self._N,):
+            raise ValueError(f"sim_norm must have shape ({self._N},)")
+        if top_k >= self._N:
+            return np.ones(self._N, dtype=bool)
+        keep = np.argpartition(scores, -top_k)[-top_k:]
+        mask = np.zeros(self._N, dtype=bool)
+        mask[keep] = True
+        return mask
+
     def id_to_idx(self, video_id: str) -> int:
         return self._id_to_idx.get(video_id, -1)
 
     def rank_of_gt(self, priors: QueryExpertPriors, gt_video_id: str,
-                   active_experts: Sequence[str]) -> int:
+                   active_experts: Sequence[str],
+                   candidate_mask: Optional[np.ndarray] = None) -> int:
         gi = self._id_to_idx.get(gt_video_id, -1)
         if gi < 0:
             return -1
         final = self.final_scores(priors, active_experts)
-        return int((final > final[gi]).sum())
+        if candidate_mask is None:
+            mask = np.ones(self._N, dtype=bool)
+        else:
+            mask = np.asarray(candidate_mask, dtype=bool)
+            if mask.shape != (self._N,):
+                raise ValueError(f"candidate_mask must have shape ({self._N},)")
+        if not mask[gi]:
+            return -1
+        return int((final[mask] > final[gi]).sum())
 
     def value(self, priors: QueryExpertPriors, gt_video_id: str,
               active_experts: Sequence[str], metric: str = "rr") -> float:

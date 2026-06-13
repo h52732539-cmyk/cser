@@ -1,0 +1,6 @@
+reports/
+models/
+logs/
+data/
+__pycache__/
+*.py[cod]
