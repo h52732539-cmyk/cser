@@ -40,13 +40,14 @@ import numpy as np
 @dataclass
 class ModelBundle:
     clip: object          # .encode_frames(list[img]) , .encode_text(list[str])
-    highlight: object     # .score(list[img]) -> list[float]
-    face_det: object      # .detect(list[img]) -> list[(bool, conf)]
-    face_emb: object      # .embed(list[img]) -> list[vec]
-    scene: object         # .classify(list[img]) -> list[label]
+    highlight: Optional[object]  # .score(list[img]) -> list[float]
+    face_det: Optional[object]   # .detect(list[img]) -> list[(bool, conf)]
+    face_emb: Optional[object]   # .embed(list[img]) -> list[vec]
+    scene: Optional[object]      # .classify(list[img]) -> list[label]
 
 
-def build_model_bundle(use_real: bool = False) -> ModelBundle:
+def build_model_bundle(use_real: bool = False,
+                       text_only: bool = False) -> ModelBundle:
     """Construct the 5 experts; fail closed when real weights are requested.
 
     Mirrors demo/run_benchmark_v2.py::build_models so behaviour is consistent
@@ -62,6 +63,15 @@ def build_model_bundle(use_real: bool = False) -> ModelBundle:
     if use_real:
         try:
             from tasks import real_models
+            if text_only:
+                print("[cser] complete cache: loading REAL text encoder only")
+                return ModelBundle(
+                    clip=real_models.RealCLIPModel(),
+                    highlight=None,
+                    face_det=None,
+                    face_emb=None,
+                    scene=None,
+                )
             b = ModelBundle(
                 clip=real_models.RealCLIPModel(),
                 highlight=real_models.MomentDETRHighlightModel(),
@@ -76,6 +86,15 @@ def build_model_bundle(use_real: bool = False) -> ModelBundle:
 
     from tasks import (MockCLIPModel, MockHighlightModel, MockFaceDetector,
                        MockFaceEmbedder, MockSceneClassifier)
+    if text_only:
+        print("[cser] complete cache: loading MOCK text encoder only")
+        return ModelBundle(
+            clip=MockCLIPModel(dim=128),
+            highlight=None,
+            face_det=None,
+            face_emb=None,
+            scene=None,
+        )
     print("[cser] using MOCK expert models")
     return ModelBundle(
         clip=MockCLIPModel(dim=128),

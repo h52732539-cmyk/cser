@@ -33,7 +33,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from cser.data import build_synthetic_dataset, load_video_dataset
 from cser.retrieval import RetrievalEngine
-from cser.value_oracle import build_oracle_labels, OracleLabels
+from cser.value_oracle import OracleLabels
 from cser.train_svn import train_svn, SVNTrainConfig
 from cser.train_set_value import train_set_value, SetValueTrainConfig
 from cser.pipeline import CSERPipeline
@@ -41,8 +41,13 @@ from cser.conformal import (SplitConformal, MondrianConformal, gt_nonconformity,
                             qpp_margin, evaluate_coverage)
 from cser.baselines import (AllExperts, RandomSelect, FixedCascade, UCBBandit,
                             oracle_mask)
-from cser.selectors import (SELECTOR_MODES, build_selector, load_set_value_model,
+from cser.selectors import (SELECTOR_MODES, build_selector,
+                            calibrate_set_value_min_delta,
                             roster_allowed_mask)
+from cser.artifacts import (load_or_build_oracle, load_or_train_set_value,
+                            load_or_train_svn,
+                            load_set_value_model as load_artifact_set_value_model,
+                            prepare_artifact_dir)
 from cser.experts import (N_OPTIONAL, OPTIONAL_COSTS, SEMANTIC_COST,
                           OPTIONAL_NAMES, mask_to_names, mask_to_id)
 from eval.metrics import retrieval_metrics
@@ -192,20 +197,24 @@ def exp_e3(ctx_cal, ctx_te, alphas=(0.01, 0.05, 0.10, 0.20), n_bins=3):
 
 
 def exp_e4(ctx, model, gate, budgets=(1.0, 3.0, 5.0, 7.0, 9.5),
-           candidate_top_k=100):
+           candidate_top_k=100, selector_factory=None,
+           safety_mode="reduce"):
     out = {}
     for B in budgets:
+        selector = selector_factory(B) if selector_factory is not None else None
         out[f"budget={B:.1f}"] = {
             "B0_all_experts": _eval_policy(ctx, AllExperts(B)),
             "B2_fixed_cascade": _eval_policy(ctx, FixedCascade(B)),
             "B_oracle": _eval_oracle(ctx, B),
-            "B6_cser": _eval_cser(ctx, model, gate, B, candidate_top_k),
+            "B6_cser": _eval_cser(
+                ctx, model, gate, B, candidate_top_k, selector=selector,
+                safety_mode=safety_mode),
         }
     return out
 
 
 def exp_e5(oracle_tr, ctx_te, gate, budget, epochs, seed, candidate_top_k=100,
-           train_device="auto", train_batch_size=256):
+           train_device="auto", train_batch_size=256, artifact_dir=None):
     from cser.run_phase1 import _svn_prediction_submod_violation
     out = {}
     for name, variant, lam in [
@@ -222,7 +231,12 @@ def exp_e5(oracle_tr, ctx_te, gate, budget, epochs, seed, candidate_top_k=100,
             device=train_device,
             batch_size=train_batch_size,
         )
-        model, _ = train_svn(oracle_tr, cfg, verbose=False)
+        if artifact_dir is None:
+            model, _ = train_svn(oracle_tr, cfg, verbose=False)
+        else:
+            model, _, _ = load_or_train_svn(
+                oracle_tr, cfg, Path(artifact_dir) / "e5" / name,
+                verbose=False)
         m = _eval_cser(ctx_te, model, gate, budget, candidate_top_k)
         m["svn_pred_submod_violation"] = _svn_prediction_submod_violation(
             model, ctx_te.oracle.query_feats)
@@ -300,6 +314,17 @@ def _parse_int_list(raw: str) -> list[int]:
         vals.append(int(part))
     if not vals:
         raise ValueError("list must contain at least one integer")
+    return vals
+
+
+def _parse_float_list(raw: str) -> list[float]:
+    vals = []
+    for part in raw.split(","):
+        part = part.strip()
+        if part:
+            vals.append(float(part))
+    if not vals:
+        raise ValueError("list must contain at least one number")
     return vals
 
 
@@ -464,6 +489,8 @@ def main():
     ap.add_argument("--real-models", action="store_true")
     ap.add_argument("--gallery-cache", default=None,
                     help="directory for reusable gallery expert cache")
+    ap.add_argument("--artifact-dir", default=None,
+                    help="shared oracle/model directory reused by Phase1/2/3")
     ap.add_argument("--metric", default="rr",
                     choices=["rr", "recall@1", "recall@5", "recall@10"])
     ap.add_argument("--epochs", type=int, default=200)
@@ -483,7 +510,13 @@ def main():
                     help="path to a trained set_value.pt for set-value selectors")
     ap.add_argument("--min-delta", type=float, default=0.0,
                     help="set_value_safe fallback margin over semantic-only prediction")
-    ap.add_argument("--expert-roster", default="all",
+    ap.add_argument("--calibrate-min-delta", action="store_true",
+                    help="select min_delta on the calibration split")
+    ap.add_argument(
+        "--min-delta-grid",
+        default="0,0.001,0.002,0.005,0.01,0.02,0.05",
+        help="comma-separated calibration candidates")
+    ap.add_argument("--expert-roster", default="no_face_id",
                     help="all, no_face_id, semantic_highlight_scene, or comma list")
     ap.add_argument("--safety-config", default="Mondrian_reduce",
                     choices=SAFETY_CONFIGS)
@@ -505,6 +538,12 @@ def main():
             ap.error(str(exc))
         if any(k <= 0 for k in candidate_top_k_list):
             ap.error("--candidate-top-k-list values must be positive")
+    try:
+        min_delta_grid = _parse_float_list(args.min_delta_grid)
+    except ValueError as exc:
+        ap.error(str(exc))
+    if any(x < 0 for x in min_delta_grid):
+        ap.error("--min-delta-grid values must be non-negative")
 
     out = Path(args.out_dir); out.mkdir(parents=True, exist_ok=True)
 
@@ -525,17 +564,23 @@ def main():
 
     tr_idx, cal_idx, te_idx = ds.split(seed=args.seed)
     engine = RetrievalEngine(ds.gallery)
+    artifact_root, artifact_manifest = prepare_artifact_dir(
+        args.artifact_dir or str(out / "artifacts"), ds,
+        (tr_idx, cal_idx, te_idx), args.metric, args.seed)
 
     def _sub(idx):
         return ([ds.query_priors[i] for i in idx], [ds.gt_video_ids[i] for i in idx])
 
     print("[oracle] building lattices (train/cal/test) ...")
     p, g = _sub(tr_idx)
-    oracle_tr = build_oracle_labels(engine, p, g, metric=args.metric, verbose=False)
+    oracle_tr, reused_oracle_tr = load_or_build_oracle(
+        artifact_root, "train", engine, p, g, args.metric)
     p, g = _sub(cal_idx)
-    oracle_cal = build_oracle_labels(engine, p, g, metric=args.metric, verbose=False)
+    oracle_cal, reused_oracle_cal = load_or_build_oracle(
+        artifact_root, "cal", engine, p, g, args.metric)
     p, g = _sub(te_idx)
-    oracle_te = build_oracle_labels(engine, p, g, metric=args.metric, verbose=False)
+    oracle_te, reused_oracle_te = load_or_build_oracle(
+        artifact_root, "test", engine, p, g, args.metric)
 
     print("[svn] training production model ...")
     cfg = SVNTrainConfig(
@@ -545,24 +590,30 @@ def main():
         device=args.train_device,
         batch_size=args.train_batch_size,
     )
-    model, _ = train_svn(oracle_tr, cfg, save_dir=str(out / "svn"), verbose=False)
+    model, svn_meta, reused_svn = load_or_train_svn(
+        oracle_tr, cfg, artifact_root / "svn", verbose=False)
 
     set_value_model = None
     if args.selector in ("set_value", "set_value_safe"):
         if args.selector_model:
-            set_value_model = load_set_value_model(
-                args.selector_model, d_query=oracle_tr.feature_dim)
+            set_value_model, set_value_meta = load_artifact_set_value_model(
+                Path(args.selector_model), oracle_tr)
+            reused_set_value = True
             print(f"[set-value] loaded selector model {args.selector_model}")
         else:
-            print("[set-value] training production model ...")
             sv_cfg = SetValueTrainConfig(
                 epochs=args.epochs,
                 seed=args.seed,
                 device=args.train_device,
                 batch_size=args.set_value_batch_size,
             )
-            set_value_model, _ = train_set_value(
-                oracle_tr, sv_cfg, save_dir=str(out / "set_value"), verbose=False)
+            set_value_model, set_value_meta, reused_set_value = \
+                load_or_train_set_value(
+                    oracle_tr, sv_cfg, artifact_root / "set_value",
+                    verbose=False)
+    else:
+        set_value_meta = None
+        reused_set_value = None
 
     p_cal, g_cal = _sub(cal_idx)
     ctx_cal = EvalContext(engine, oracle_cal, p_cal, g_cal)
@@ -578,14 +629,31 @@ def main():
         args.safety_config, split_gate, mond_gate, heuristic_gate,
         args.candidate_top_k)
 
-    selector = build_selector(
-        args.selector,
-        budget=args.budget,
-        roster=args.expert_roster,
-        svn_model=model,
-        set_value_model=set_value_model,
-        min_delta=args.min_delta,
-    )
+    effective_min_delta = args.min_delta
+    selector_calibration = None
+    if args.calibrate_min_delta:
+        if args.selector != "set_value_safe":
+            ap.error("--calibrate-min-delta requires --selector set_value_safe")
+        effective_min_delta, selector_calibration = \
+            calibrate_set_value_min_delta(
+                set_value_model, oracle_cal, args.budget,
+                args.expert_roster, min_delta_grid)
+        (out / "selector_calibration.json").write_text(
+            json.dumps(selector_calibration, indent=2), encoding="utf-8")
+        print("[selector] calibrated min_delta="
+              f"{effective_min_delta:g} on calibration split")
+
+    def _selector_for_budget(budget):
+        return build_selector(
+            args.selector,
+            budget=budget,
+            roster=args.expert_roster,
+            svn_model=model,
+            set_value_model=set_value_model,
+            min_delta=effective_min_delta,
+        )
+
+    selector = _selector_for_budget(args.budget)
 
     print("[E1] main comparison ...")
     e1_results = _run_cser(ctx_te, model, gate, args.budget, e1_candidate_top_k,
@@ -604,7 +672,9 @@ def main():
     e3 = exp_e3(ctx_cal, ctx_te)
     (out / "e3_conformal.json").write_text(json.dumps(e3, indent=2, default=str))
     print("[E4] budget curve ...")
-    e4 = exp_e4(ctx_te, model, gate, candidate_top_k=args.candidate_top_k)
+    e4 = exp_e4(
+        ctx_te, model, gate, candidate_top_k=args.candidate_top_k,
+        selector_factory=_selector_for_budget, safety_mode=safety_mode)
     (out / "e4_budget_curve.json").write_text(json.dumps(e4, indent=2, default=str))
     print("[E5] SVN ablation ...")
     e5 = exp_e5(
@@ -617,6 +687,7 @@ def main():
         args.candidate_top_k,
         args.train_device,
         args.train_batch_size,
+        artifact_root,
     )
     (out / "e5_svn_ablation.json").write_text(json.dumps(e5, indent=2, default=str))
     print("[E6] safety ablation ...")
@@ -638,7 +709,9 @@ def main():
         "candidate_top_k": e1_candidate_top_k,
         "candidate_top_k_sweep": candidate_top_k_list,
         "selector": args.selector,
-        "min_delta": args.min_delta,
+        "min_delta_requested": args.min_delta,
+        "min_delta_effective": effective_min_delta,
+        "selector_calibration": selector_calibration,
         "expert_roster": args.expert_roster,
         "safety_config": args.safety_config,
         "safety_mode": safety_mode,
@@ -648,6 +721,17 @@ def main():
         "n_videos_loaded": int(ds.gallery_size),
         "failed_video_ids": list(ds.failed_video_ids),
         "gallery_cache_manifest": ds.cache_manifest,
+        "artifact_dir": str(artifact_root),
+        "artifact_manifest": artifact_manifest,
+        "artifact_reuse": {
+            "oracle_train": reused_oracle_tr,
+            "oracle_cal": reused_oracle_cal,
+            "oracle_test": reused_oracle_te,
+            "svn": reused_svn,
+            "set_value": reused_set_value,
+        },
+        "svn_model": svn_meta,
+        "set_value_model": set_value_meta,
         "n_queries": ds.n_queries,
         "split": {"train": int(len(tr_idx)), "cal": int(len(cal_idx)),
                   "test": int(len(te_idx))},

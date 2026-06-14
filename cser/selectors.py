@@ -13,6 +13,7 @@ from .experts import (N_OPTIONAL, OPTIONAL_COSTS, OPTIONAL_NAMES,
                       mask_to_names)
 from .set_value_network import SetValueNetwork
 from .svn import SubmodularValueNetwork
+from .value_oracle import OracleLabels
 
 
 SELECTOR_MODES = (
@@ -70,6 +71,70 @@ def feasible_subset_ids(budget: float,
         if _mask_cost(mask) <= budget + 1e-9:
             out.append(int(sid))
     return out
+
+
+@torch.no_grad()
+def calibrate_set_value_min_delta(
+        model: SetValueNetwork,
+        labels: OracleLabels,
+        budget: float,
+        roster: str,
+        candidates: Sequence[float],
+        device: str = "cpu"):
+    """Choose the safe-fallback margin using calibration labels only."""
+    grid = sorted({float(x) for x in candidates})
+    if not grid:
+        raise ValueError("min-delta calibration grid must not be empty")
+    if any(x < 0 for x in grid):
+        raise ValueError("min-delta calibration values must be non-negative")
+
+    allowed = roster_allowed_mask(roster)
+    feasible = feasible_subset_ids(budget, allowed)
+    if 0 not in feasible:
+        raise ValueError("semantic-only subset must be budget feasible")
+
+    model = model.to(device).eval()
+    x = torch.from_numpy(labels.query_feats.astype(np.float32)).to(device)
+    pred = model(x).cpu().numpy()
+    feasible_arr = np.asarray(feasible, dtype=np.int64)
+    best_pos = np.argmax(pred[:, feasible_arr], axis=1)
+    best_sid = feasible_arr[best_pos]
+    row = np.arange(labels.n_queries)
+    predicted_best = pred[row, best_sid]
+    predicted_empty = pred[:, 0]
+    semantic_value = labels.value_matrix[:, 0]
+
+    curve = {}
+    for delta in grid:
+        fallback = predicted_best <= predicted_empty + delta
+        chosen = best_sid.copy()
+        chosen[fallback] = 0
+        realised = labels.value_matrix[row, chosen]
+        curve[f"{delta:.8g}"] = {
+            "min_delta": float(delta),
+            "mean_value": float(realised.mean()),
+            "mean_delta_vs_semantic": float(
+                (realised - semantic_value).mean()),
+            "degradation_rate": float((realised < semantic_value).mean()),
+            "selected_nonempty_rate": float((chosen != 0).mean()),
+            "fallback_rate": float(fallback.mean()),
+        }
+
+    best = max(
+        curve.values(),
+        key=lambda item: (
+            item["mean_value"],
+            -item["degradation_rate"],
+            item["min_delta"],
+        ),
+    )
+    return float(best["min_delta"]), {
+        "selection_split": "calibration",
+        "budget": float(budget),
+        "roster": roster,
+        "selected_min_delta": float(best["min_delta"]),
+        "curve": curve,
+    }
 
 
 class MarginalGreedySelector:

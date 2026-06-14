@@ -13,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from cser.data import build_synthetic_dataset
 from cser.retrieval import RetrievalEngine
-from cser.value_oracle import build_oracle_labels
+from cser.value_oracle import build_oracle_labels, OracleLabels
 from cser.train_svn import train_svn, SVNTrainConfig
 from cser.train_set_value import train_set_value, SetValueTrainConfig
 from cser.conformal import (SplitConformal, MondrianConformal, conformal_quantile,
@@ -21,8 +21,10 @@ from cser.conformal import (SplitConformal, MondrianConformal, conformal_quantil
 from cser.pipeline import CSERPipeline
 from cser.baselines import (AllExperts, RandomSelect, FixedCascade, UCBBandit,
                             oracle_mask)
-from cser.selectors import build_selector
+from cser.selectors import (build_selector, calibrate_set_value_min_delta,
+                            SelectionResult)
 from cser.experts import N_OPTIONAL, SEMANTIC_COST, OPTIONAL_COSTS, mask_to_id
+from cser.run_phase2 import EvalContext, exp_e4
 
 
 @pytest.fixture(scope="module")
@@ -177,6 +179,63 @@ def test_set_value_safe_min_delta_falls_back(setup):
     res = selector.select(setup["oracle_te"].query_feats[0])
     assert res.fallback_triggered
     assert res.selected_mask.sum() == 0
+
+
+def test_e4_uses_configured_selector_for_every_budget(setup):
+    ctx = EvalContext(
+        setup["eng"], setup["oracle_te"], setup["p_te"], setup["g_te"])
+    seen_budgets = []
+
+    class EmptySelector:
+        safe = False
+
+        def select(self, query_feat):
+            mask = np.zeros(N_OPTIONAL, dtype=bool)
+            return SelectionResult(
+                selected_mask=mask,
+                active_experts=[],
+                cost=SEMANTIC_COST,
+                n_experts_called=1,
+                selector_mode="test_empty",
+            )
+
+    def factory(budget):
+        seen_budgets.append(budget)
+        return EmptySelector()
+
+    result = exp_e4(
+        ctx, setup["model"], None, budgets=(1.0, 5.0),
+        selector_factory=factory)
+    assert seen_budgets == [1.0, 5.0]
+    assert result["budget=1.0"]["B6_cser"]["avg_cost"] == SEMANTIC_COST
+    assert result["budget=5.0"]["B6_cser"]["avg_cost"] == SEMANTIC_COST
+
+
+def test_min_delta_calibration_avoids_false_positive_subsets():
+    import torch
+
+    values = np.zeros((3, 16), dtype=np.float32)
+    values[:, 0] = 0.5
+    values[:, 1:] = 0.3
+    labels = OracleLabels(
+        metric="rr",
+        query_feats=np.zeros((3, 2), dtype=np.float32),
+        value_matrix=values,
+        marginal=np.zeros((3, 16, N_OPTIONAL), dtype=np.float32),
+        optional_experts=["highlight", "face", "face_id", "scene"],
+    )
+
+    class FalsePositiveModel(torch.nn.Module):
+        def forward(self, query_feat):
+            pred = torch.zeros((query_feat.shape[0], 16))
+            pred[:, 1] = 0.1
+            return pred
+
+    selected, report = calibrate_set_value_min_delta(
+        FalsePositiveModel(), labels, budget=5.0, roster="no_face_id",
+        candidates=(0.0, 0.2))
+    assert selected == 0.2
+    assert report["curve"]["0.2"]["selected_nonempty_rate"] == 0.0
 
 
 # ---- baselines ----

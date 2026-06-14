@@ -215,7 +215,10 @@ def _bundle_manifest(bundle: ModelBundle, use_real_models: bool) -> Dict:
         else:
             ckpts[name] = None
     return {
-        "expert_class_names": {k: type(v).__name__ for k, v in parts.items()},
+        "expert_class_names": {
+            k: (type(v).__name__ if v is not None else None)
+            for k, v in parts.items()
+        },
         "checkpoint_paths": ckpts,
         "mock_fallback_occurred": not use_real_models,
     }
@@ -324,8 +327,6 @@ def load_video_dataset(videos_dir: str,
         use_real_models: True -> real backbones (needs weights); raises on
             initialization failure so diagnostic runs cannot silently use mocks.
     """
-    bundle = build_model_bundle(use_real=use_real_models)
-
     vdir = Path(videos_dir)
     manifest = vdir / "manifest.json"
     if manifest.exists():
@@ -365,6 +366,11 @@ def load_video_dataset(videos_dir: str,
               f"({gallery.size}/{len(entries)} videos)")
     else:
         cache_complete = False
+
+    bundle = build_model_bundle(
+        use_real=use_real_models,
+        text_only=cache_complete,
+    )
 
     if not cache_complete:
         cached_ids = set(gallery.video_ids) if gallery is not None else set()

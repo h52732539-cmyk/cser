@@ -32,7 +32,7 @@ from eval.metrics import retrieval_metrics
 
 def exp_e7_scalability(dataset, model, budget: float = 5.0,
                        sizes: Sequence[int] = (250, 500, 1000),
-                       seed: int = 42) -> Dict:
+                       seed: int = 42, selector=None) -> Dict:
     """Sub-sample the gallery to several sizes; measure CSER R@1 + latency.
 
     The GT video of each evaluated query is always kept in the sub-gallery.
@@ -60,7 +60,7 @@ def exp_e7_scalability(dataset, model, budget: float = 5.0,
         gts = [dataset.gt_video_ids[i] for i in q_ids]
         oracle = build_oracle_labels(eng, priors, gts, verbose=False)
 
-        sel = GreedyBudgetedSelector(model, budget=budget)
+        sel = selector or GreedyBudgetedSelector(model, budget=budget)
         all_names = list(OPTIONAL_NAMES)
         ranks, cser_ms, full_ms = [], [], []
         for k in range(len(q_ids)):
@@ -111,7 +111,8 @@ def _perturb_gallery(gallery, level: float, seed: int):
 
 
 def exp_e8_robustness(dataset, model, budget: float = 5.0, seed: int = 42,
-                      alpha: float = 0.05, candidate_top_k: int = 100) -> Dict:
+                      alpha: float = 0.05, candidate_top_k: int = 100,
+                      selector=None) -> Dict:
     levels = {"clean": 0.0, "mild": 0.1, "medium": 0.25, "heavy": 0.5}
     _, cal_idx, te_idx = dataset.split(seed=seed)
     q_ids = list(te_idx[:min(len(te_idx), 150)])
@@ -132,7 +133,8 @@ def exp_e8_robustness(dataset, model, budget: float = 5.0, seed: int = 42,
         eng = RetrievalEngine(g)
         oracle = build_oracle_labels(eng, priors, gts, verbose=False)
         pipe = CSERPipeline(eng, model, conformal_gate=gate, budget=budget,
-                            candidate_top_k=candidate_top_k)
+                            candidate_top_k=candidate_top_k,
+                            selector=selector)
         casc = FixedCascade(budget=budget)
         cser_ranks, casc_ranks, cser_filtered, candidate_counts = [], [], [], []
         for k in range(len(q_ids)):
@@ -197,7 +199,7 @@ def exp_e9_expert_contribution(oracle: OracleLabels, model) -> Dict:
 # ----------------------------------------------------------------------
 
 def exp_e10_oracle_comparison(oracle: OracleLabels, model,
-                              budget: float = 5.0) -> Dict:
+                              budget: float = 5.0, selector=None) -> Dict:
     n = oracle.n_queries
     best = oracle.best_subset_value()
     denom = max(float(best.mean()), 1e-9)
@@ -209,7 +211,7 @@ def exp_e10_oracle_comparison(oracle: OracleLabels, model,
     all_masks = [np.ones(N_OPTIONAL, dtype=bool)] * n
     oracle_masks = [oracle_mask(oracle.value_matrix[q], budget) for q in range(n)]
     greedy_true = [_greedy_true(oracle.value_matrix[q], budget) for q in range(n)]
-    sel = GreedyBudgetedSelector(model, budget=budget)
+    sel = selector or GreedyBudgetedSelector(model, budget=budget)
     cser_masks = [sel.select(oracle.query_feats[q]).selected_mask for q in range(n)]
 
     methods = {

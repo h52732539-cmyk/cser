@@ -5,7 +5,9 @@ Run:  cd litevtr_multi_model_framework && python -m pytest cser/tests -q
 from __future__ import annotations
 
 import sys
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -15,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from cser import experts
-from cser.data import build_synthetic_dataset
+from cser.data import build_synthetic_dataset, load_video_dataset
 from cser.expert_features import build_model_bundle, build_query_priors
 from cser.retrieval import RetrievalEngine
 from cser.value_oracle import build_oracle_labels, OracleLabels, query_feature_dim
@@ -25,6 +27,8 @@ from cser.set_value_network import SetValueNetwork
 from cser.train_set_value import train_set_value, SetValueTrainConfig
 from cser.greedy import GreedyBudgetedSelector
 from cser.submodularity import verify_submodularity
+from cser.artifacts import (load_or_build_oracle, load_or_train_svn,
+                            prepare_artifact_dir)
 
 
 # ----------------------------------------------------------------------
@@ -72,6 +76,63 @@ def test_real_bundle_init_failure_does_not_fallback(monkeypatch):
     monkeypatch.setattr(real_models, "RealCLIPModel", _missing_weights)
     with pytest.raises(RuntimeError, match="CSER real-model init failed"):
         build_model_bundle(use_real=True)
+
+
+def test_complete_gallery_cache_initializes_text_encoder_only(
+        monkeypatch, tmp_path):
+    source = build_synthetic_dataset(n_videos=4, n_queries=4, seed=7)
+    gallery = source.gallery
+    videos = tmp_path / "videos"
+    videos.mkdir()
+    (videos / "manifest.json").write_text(json.dumps([
+        {"id": vid, "path": str(videos / f"{vid}.mp4")}
+        for vid in gallery.video_ids
+    ]), encoding="utf-8")
+    csv_path = tmp_path / "queries.csv"
+    csv_path.write_text(
+        f"sentence,video_id\ncached query,{gallery.video_ids[0]}\n",
+        encoding="utf-8")
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    np.savez_compressed(
+        cache / "gallery_cache.npz",
+        video_ids=np.array(gallery.video_ids),
+        clip_mean=gallery.clip_matrix(),
+        highlight=gallery.highlight_vector(),
+        face=gallery.face_vector(),
+        face_emb=gallery.face_emb_matrix(),
+        scene_dist_json=np.array([
+            json.dumps(signal.scene_dist) for signal in gallery.signals
+        ]),
+        clip_dim=np.array([gallery.clip_dim], dtype=np.int32),
+        face_dim=np.array([gallery.face_dim], dtype=np.int32),
+    )
+    (cache / "manifest.json").write_text(json.dumps({
+        "complete": True,
+        "n_videos_total": gallery.size,
+        "n_videos_loaded": gallery.size,
+        "failed_video_ids": [],
+    }), encoding="utf-8")
+
+    calls = []
+
+    class TextEncoder:
+        def encode_text(self, texts):
+            return np.zeros((len(texts), gallery.clip_dim), dtype=np.float32)
+
+    def fake_bundle(use_real=False, text_only=False):
+        calls.append((use_real, text_only))
+        return SimpleNamespace(
+            clip=TextEncoder(), highlight=None, face_det=None,
+            face_emb=None, scene=None)
+
+    monkeypatch.setattr("cser.data.build_model_bundle", fake_bundle)
+    loaded = load_video_dataset(
+        str(videos), str(csv_path), use_real_models=True,
+        cache_dir=str(cache))
+    assert calls == [(True, True)]
+    assert loaded.gallery_size == gallery.size
 
 
 @pytest.fixture(scope="module")
@@ -147,6 +208,29 @@ def test_oracle_save_load(oracle, tmp_path):
     oracle.save(str(p))
     loaded = OracleLabels.load(str(p))
     np.testing.assert_allclose(loaded.value_matrix, oracle.value_matrix)
+
+
+def test_shared_artifacts_reuse_oracle_and_svn(dataset, engine, tmp_path):
+    split = dataset.split(seed=11)
+    root, _ = prepare_artifact_dir(
+        str(tmp_path), dataset, split, "rr", 11)
+    train = split[0]
+    priors = [dataset.query_priors[i] for i in train]
+    gts = [dataset.gt_video_ids[i] for i in train]
+    labels, reused = load_or_build_oracle(
+        root, "train", engine, priors, gts, "rr")
+    assert not reused
+    _, reused = load_or_build_oracle(
+        root, "train", engine, priors, gts, "rr")
+    assert reused
+
+    cfg = SVNTrainConfig(epochs=1, patience=1, seed=11)
+    _, _, reused = load_or_train_svn(
+        labels, cfg, root / "svn", verbose=False)
+    assert not reused
+    _, _, reused = load_or_train_svn(
+        labels, cfg, root / "svn", verbose=False)
+    assert reused
 
 
 # ----------------------------------------------------------------------

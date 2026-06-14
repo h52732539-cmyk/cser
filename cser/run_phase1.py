@@ -35,6 +35,8 @@ from cser.data import build_synthetic_dataset, load_video_dataset
 from cser.retrieval import RetrievalEngine
 from cser.value_oracle import build_oracle_labels, OracleLabels
 from cser.train_svn import train_svn, SVNTrainConfig
+from cser.artifacts import (load_or_build_oracle, load_or_train_svn,
+                            prepare_artifact_dir)
 from cser.svn import SubmodularValueNetwork
 from cser.greedy import GreedyBudgetedSelector
 from cser.submodularity import verify_submodularity
@@ -92,6 +94,8 @@ def main():
                     help="use real expert backbones (needs weights)")
     ap.add_argument("--gallery-cache", default=None,
                     help="directory for reusable gallery expert cache")
+    ap.add_argument("--artifact-dir", default=None,
+                    help="shared oracle/model directory reused by Phase1/2/3")
     ap.add_argument("--metric", default="rr",
                     choices=["rr", "recall@1", "recall@5", "recall@10"])
     ap.add_argument("--epochs", type=int, default=300)
@@ -126,6 +130,9 @@ def main():
 
     tr_idx, cal_idx, te_idx = ds.split(seed=args.seed)
     engine = RetrievalEngine(ds.gallery)
+    artifact_root, artifact_manifest = prepare_artifact_dir(
+        args.artifact_dir or str(out), ds, (tr_idx, cal_idx, te_idx),
+        args.metric, args.seed)
 
     def _sub(idx):
         return ([ds.query_priors[i] for i in idx],
@@ -134,11 +141,14 @@ def main():
     # ── 2. Oracle labels ──
     print(f"[2/5] Building oracle value lattices (metric={args.metric}) ...")
     p_tr, g_tr = _sub(tr_idx)
+    p_cal, g_cal = _sub(cal_idx)
     p_te, g_te = _sub(te_idx)
-    oracle_tr = build_oracle_labels(engine, p_tr, g_tr, metric=args.metric, verbose=False)
-    oracle_te = build_oracle_labels(engine, p_te, g_te, metric=args.metric, verbose=False)
-    oracle_tr.save(str(out / "oracle_train.npz"))
-    oracle_te.save(str(out / "oracle_test.npz"))
+    oracle_tr, reused_oracle_tr = load_or_build_oracle(
+        artifact_root, "train", engine, p_tr, g_tr, args.metric)
+    _, reused_oracle_cal = load_or_build_oracle(
+        artifact_root, "cal", engine, p_cal, g_cal, args.metric)
+    oracle_te, reused_oracle_te = load_or_build_oracle(
+        artifact_root, "test", engine, p_te, g_te, args.metric)
 
     # ── 3. Train SVN ──
     print("[3/5] Training Submodular Value Network ...")
@@ -149,7 +159,8 @@ def main():
         device=args.train_device,
         batch_size=args.train_batch_size,
     )
-    model, history = train_svn(oracle_tr, cfg, save_dir=str(out / "svn"))
+    model, svn_meta, reused_svn = load_or_train_svn(
+        oracle_tr, cfg, artifact_root / "svn")
 
     # ── 4. Submodularity verification (E2) ──
     print("[4/5] Verifying submodularity (E2) ...")
@@ -179,11 +190,19 @@ def main():
         "n_videos_loaded": int(ds.gallery_size),
         "failed_video_ids": list(ds.failed_video_ids),
         "gallery_cache_manifest": ds.cache_manifest,
+        "artifact_dir": str(artifact_root),
+        "artifact_manifest": artifact_manifest,
+        "artifact_reuse": {
+            "oracle_train": reused_oracle_tr,
+            "oracle_cal": reused_oracle_cal,
+            "oracle_test": reused_oracle_te,
+            "svn": reused_svn,
+        },
         "n_queries": ds.n_queries,
         "split": {"train": int(len(tr_idx)), "cal": int(len(cal_idx)),
                   "test": int(len(te_idx))},
         "svn_param_count": model.param_count(),
-        "svn_best_val_mse": history["val_mse"][-1] if history["val_mse"] else None,
+        "svn_best_val_mse": svn_meta.get("best_val_mse"),
         "submodularity": rd, "greedy_vs_oracle": gvo,
         "optional_experts": list(OPTIONAL_NAMES),
     }
